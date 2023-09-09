@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListGoogle(listType string) []List {
 	// IDs got from original simplytranslate-web and trial and error. Usually first three letters of language.

@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListMyMemory(listType string) []List {
 	ListData := []List{

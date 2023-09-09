@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListDuckDuckGo(listType string) []List {
 	// DuckDuckGo is just Bing translate but easier to scrape :)

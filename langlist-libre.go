@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListLibreTranslate(listType string) []List {
 	ListData := []List{

@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListWatson(listType string) []List {
 	// IDs got from https://www.loc.gov/standards/iso639-2/php/code_list.php and tested to make sure they work. Exceptions fr-CA zh-CN/TW

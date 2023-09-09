@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListYandex(listType string) []List {
 	ListData := []List{

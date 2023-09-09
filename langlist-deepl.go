@@ -1,4 +1,4 @@
-package utils
+package libmozhi
 
 func langListDeepl(listType string) []List {
 	// IDs got from deepl.com/translator
