@@ -2,7 +2,6 @@ package libmozhi
 
 import (
 	"errors"
-	"os"
 )
 
 type List struct {
