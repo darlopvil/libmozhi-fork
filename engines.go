@@ -45,10 +45,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
 
-	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
-	if !ok {
-		UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-	}
+	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	sc := colly.NewCollector(colly.AllowedDomains("translate.google.com"), colly.UserAgent(UserAgent))
 	var answer string
 	sc.OnHTML("div.result-container", func(e *colly.HTMLElement) {
@@ -305,10 +302,7 @@ func ddgVqdUpdate() {
 		panic(err)
 	}
 
-	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
-	if !ok {
-		UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-	}
+	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	r.Header.Set("User-Agent", UserAgent)
 
 	client := &http.Client{}

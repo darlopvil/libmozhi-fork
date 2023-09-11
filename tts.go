@@ -139,10 +139,7 @@ func ttsReverso(lang string, text string) ([]byte, error) {
 	var file string
 	url := "https://voice.reverso.net/RestPronunciation.svc/v1/output=json/GetVoiceStream/voiceName=" + voice + "?" + v.Encode()
 
-	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
-	if !ok {
-		UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-	}
+	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	err := requests.
 		URL(url).
 		ToString(&file).

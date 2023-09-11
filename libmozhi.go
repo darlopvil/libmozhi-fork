@@ -17,36 +17,26 @@ type LangOut struct {
 	TargetLang string `json:"target_language"`
 }
 
-func envTrueNoExist(env string) bool {
-	if _, ok := os.LookupEnv(env); ok == false || os.Getenv(env) == "true" {
-		return true
-	}
-	return false
-}
-
 func LangList(engine string, listType string) ([]List, error) {
 	var data []List
 	if listType != "sl" && listType != "tl" {
 		return []List{}, errors.New("list type invalid: either give tl for target languages or sl for source languages.")
 	}
-	if engine == "google" && envTrueNoExist("MOZHI_GOOGLE_ENABLED") {
+	if engine == "google" {
 		data = langListGoogle(listType)
-	} else if engine == "libre" && envTrueNoExist("MOZHI_LIBRETRANSLATE_ENABLED") {
-		if envTrueNoExist("MOZHI_LIBRETRANSLATE_URL") {
-			return []List{}, errors.New("Please set MOZHI_LIBRETRANSLATE_URL if you want to use libretranslate. Example: MOZHI_LIBRETRANSLATE_URL=https://lt.psf.lt")
-		}
+	} else if engine == "libre" {
 		data = langListLibreTranslate(listType)
-	} else if engine == "reverso" && envTrueNoExist("MOZHI_REVERSO_ENABLED") {
+	} else if engine == "reverso" {
 		data = langListReverso(listType)
-	} else if engine == "deepl" && envTrueNoExist("MOZHI_DEEPL_ENABLED") {
+	} else if engine == "deepl" {
 		data = langListDeepl(listType)
-	} else if engine == "watson" && envTrueNoExist("MOZHI_WATSON_ENABLED") {
+	} else if engine == "watson" {
 		data = langListWatson(listType)
-	} else if engine == "yandex" && envTrueNoExist("MOZHI_YANDEX_ENABLED") {
+	} else if engine == "yandex" {
 		data = langListYandex(listType)
-	} else if engine == "mymemory" && envTrueNoExist("MOZHI_MYMEMORY_ENABLED") {
+	} else if engine == "mymemory" {
 		data = langListMyMemory(listType)
-	} else if engine == "duckduckgo" && envTrueNoExist("MOZHI_DUCKDUCKGO_ENABLED") {
+	} else if engine == "duckduckgo" {
 		data = langListDuckDuckGo(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
@@ -58,24 +48,21 @@ func LangList(engine string, listType string) ([]List, error) {
 func Translate(engine string, to string, from string, text string) (LangOut, error) {
 	var err error
 	var data LangOut
-	if engine == "google" && envTrueNoExist("MOZHI_GOOGLE_ENABLED") {
+	if engine == "google" {
 		data, err = translateGoogle(to, from, text)
-	} else if engine == "libre" && envTrueNoExist("MOZHI_LIBRETRANSLATE_ENABLED") {
-		if os.Getenv("MOZHI_LIBRETRANSLATE_URL") == "" {
-			return LangOut{}, errors.New("Please set MOZHI_LIBRETRANSLATE_URL if you want to use libretranslate. Example: MOZHI_LIBRETRANSLATE_URL=https://lt.psf.lt")
-		}
+	} else if engine == "libre" {
 		data, err = translateLibreTranslate(to, from, text)
-	} else if engine == "reverso" && envTrueNoExist("MOZHI_REVERSO_ENABLED") {
+	} else if engine == "reverso" {
 		data, err = translateReverso(to, from, text)
-	} else if engine == "deepl" && envTrueNoExist("MOZHI_DEEPL_ENABLED") {
+	} else if engine == "deepl" {
 		data, err = translateDeepl(to, from, text)
-	} else if engine == "watson" && envTrueNoExist("MOZHI_WATSON_ENABLED") {
+	} else if engine == "watson" {
 		data, err = translateWatson(to, from, text)
-	} else if engine == "yandex" && envTrueNoExist("MOZHI_YANDEX_ENABLED") {
+	} else if engine == "yandex" {
 		data, err = translateYandex(to, from, text)
-	} else if engine == "mymemory" && envTrueNoExist("MOZHI_MYMEMORY_ENABLED") {
+	} else if engine == "mymemory" {
 		data, err = translateMyMemory(to, from, text)
-	} else if engine == "duckduckgo" && envTrueNoExist("MOZHI_DUCKDUCKGO_ENABLED") {
+	} else if engine == "duckduckgo" {
 		data, err = translateDuckDuckGo(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
@@ -89,9 +76,9 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 func TTS(engine string, lang string, text string) ([]byte, error) {
 	var err error
 	var data []byte
-	if engine == "google" && envTrueNoExist("MOZHI_GOOGLE_ENABLED") {
+	if engine == "google" {
 		data, err = ttsGoogle(lang, text)
-	} else if engine == "reverso" && envTrueNoExist("MOZHI_REVERSO_ENABLED") {
+	} else if engine == "reverso" {
 		data, err = ttsReverso(lang, text)
 	} else {
 		return []byte(""), errors.New("Engine does not exist and/or doesn't support TTS and/or has been disabled.")
