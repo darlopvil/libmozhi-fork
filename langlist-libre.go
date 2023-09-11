@@ -3,10 +3,6 @@ package libmozhi
 func langListLibreTranslate(listType string) []List {
 	ListData := []List{
 		{
-			Id:   "en",
-			Name: "English",
-		},
-		{
 			Id:   "ar",
 			Name: "Arabic",
 		},
@@ -21,6 +17,10 @@ func langListLibreTranslate(listType string) []List {
 		{
 			Id:   "de",
 			Name: "German",
+		},
+		{
+			Id:   "en",
+			Name: "English",
 		},
 		{
 			Id:   "hi",
