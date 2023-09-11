@@ -130,7 +130,7 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 	gjsonArr := libreTranslateOut.Get("translatedText").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
-	langout.Engine = "libretranslate"
+	langout.Engine = "libre"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
 	if from == "auto" {
