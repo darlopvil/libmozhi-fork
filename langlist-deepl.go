@@ -42,7 +42,7 @@ func langListDeepl(listType string) []List {
 		},
 		{
 			Id:   "de",
-			Name: "Germany",
+			Name: "German",
 		},
 		{
 			Id:   "el",

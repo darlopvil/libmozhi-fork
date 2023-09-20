@@ -6,11 +6,11 @@ import (
 	"net/http"
 )
 
-func postRequest(url string, data []byte, contenttype string) string {
+func postRequest(url string, data []byte, contenttype string) (string, error) {
 	bodyReader := bytes.NewReader(data)
 	r, err := http.NewRequest(http.MethodPost, url, bodyReader)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
@@ -18,25 +18,25 @@ func postRequest(url string, data []byte, contenttype string) string {
 	r.Header.Set("User-Agent", UserAgent)
 
 	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		panic(err)
+	res, err0 := client.Do(r)
+	if err0 != nil {
+		return "", err0
 	}
 
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
+	body, err1 := io.ReadAll(res.Body)
+	if err1 != nil {
+		return "", err1
 	}
 
-	return string(body)
+	return string(body), nil
 }
 
-func getRequest(url string) string {
+func getRequest(url string) (string, error) {
 	r, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
@@ -44,16 +44,16 @@ func getRequest(url string) string {
 	r.Header.Set("User-Agent", UserAgent)
 
 	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		panic(err)
+	res, err0 := client.Do(r)
+	if err0 != nil {
+		return "", err0
 	}
 
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
+	body, err1 := io.ReadAll(res.Body)
+	if err1 != nil {
+		return "", err1
 	}
-	return string(body)
+	return string(body), nil
 }

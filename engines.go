@@ -46,7 +46,10 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	}
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
 	data := []byte(`f.req=[[["MkEWBc", "[[\"`+text+`\",\"`+from+`\",\"`+to+`\",1],[]]",null,"generic"]]]`)
-	googleOut := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", data, "application/x-www-form-urlencoded")
+	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", data, "application/x-www-form-urlencoded")
+	if err != nil {
+		return LangOut{}, err
+	}
 	googleOut = strings.TrimPrefix(googleOut, ")]}'")
 	googleOut = strings.TrimSuffix(googleOut, "]")
 	googleOut = strings.TrimPrefix(googleOut, "[")
@@ -87,7 +90,10 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
 	json := []byte(`{ "format": "text", "from": "` + from + `", "to": "` + to + `", "input":"` + query + `", "options": {"sentenceSplitter": false, "origin":"translation.web", contextResults: false, languageDetection: true} }`)
-	reversoOut := postRequest("https://api.reverso.net/translate/v1/translation", json, "application/json")
+	reversoOut, err := postRequest("https://api.reverso.net/translate/v1/translation", json, "application/json")
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(reversoOut, "translation").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -121,7 +127,10 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 	}
 	json := []byte(`{"q":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
 	// TODO: Make it configurable
-	libreTranslateOut := postRequest(os.Getenv("MOZHI_LIBRETRANSLATE_URL")+"/translate", json, "application/json")
+	libreTranslateOut, err := postRequest(os.Getenv("MOZHI_LIBRETRANSLATE_URL")+"/translate", json, "application/json")
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(libreTranslateOut, "translatedText").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -162,7 +171,10 @@ func translateWatson(to string, from string, query string) (LangOut, error) {
 		from = langout.AutoDetect
 	}
 	json := []byte(`{"text":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
-	watsonOut := postRequest("https://www.ibm.com/demos/live/watson-language-translator/api/translate/text", json, "application/json")
+	watsonOut, err := postRequest("https://www.ibm.com/demos/live/watson-language-translator/api/translate/text", json, "application/json")
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(watsonOut, "payload.translations.0.translation").Array()
 	langout.OutputText = gjsonArr[0].String()
 	langout.Engine = "watson"
@@ -199,7 +211,10 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	}
 	opt := Options{from + "|" + to, text}
 	v, _ := query.Values(opt)
-	myMemoryOut := getRequest("https://api.mymemory.translated.net/get?" + v.Encode())
+	myMemoryOut, err := getRequest("https://api.mymemory.translated.net/get?" + v.Encode())
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(myMemoryOut, "responseData.translatedText").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -242,7 +257,10 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	opt := Options{from + "-" + to, text, "android", uuid + "-0-0"}
 	v, _ := query.Values(opt)
 
-	yandexOut := postRequest("https://translate.yandex.net/api/v1/tr.json/translate?"+v.Encode(), []byte(""), "application/json")
+	yandexOut, err := postRequest("https://translate.yandex.net/api/v1/tr.json/translate?"+v.Encode(), []byte(""), "application/json")
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -292,26 +310,17 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 }
 
 func ddgVqdUpdate() {
-	r, err := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
-	if err != nil {
-		panic(err)
-	}
+	r, _ := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
 
 	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	r.Header.Set("User-Agent", UserAgent)
 
 	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		panic(err)
-	}
+	res, _ := client.Do(r)
 
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
+	body, _ := io.ReadAll(res.Body)
 	re := regexp.MustCompile(`vqd="([^"]*)"`)
 	match := re.FindStringSubmatch(string(body))
 	ddgVqd = match[1]
@@ -356,7 +365,10 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 	} else {
 		url = "https://duckduckgo.com/translation.js?vqd=" + ddgVqd + "&query=translate&to=" + to + "&from=" + from
 	}
-	duckDuckGoOut := postRequest(url, []byte(query), "application/json")
+	duckDuckGoOut, err := postRequest(url, []byte(query), "application/json")
+	if err != nil {
+		return LangOut{}, err
+	}
 	gjsonArr := gjson.Get(duckDuckGoOut, "translated").Array()
 	langout.OutputText = gjsonArr[0].String()
 	langout.Engine = "duckduckgo"
