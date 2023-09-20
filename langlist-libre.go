@@ -8,7 +8,7 @@ func langListLibreTranslate(listType string) []List {
 		},
 		{
 			Id:   "zh",
-			Name: "Chinese",
+			Name: "Chinese (Simplified)",
 		},
 		{
 			Id:   "fr",

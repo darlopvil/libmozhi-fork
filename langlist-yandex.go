@@ -64,7 +64,7 @@ func langListYandex(listType string) []List {
 		},
 		{
 			Id:   "zh",
-			Name: "Chinese",
+			Name: "Chinese (Simplified)",
 		},
 		{
 			Id:   "cv",
