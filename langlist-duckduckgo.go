@@ -65,12 +65,12 @@ func langListDuckDuckGo(listType string) []List {
 			Name: "Chinese (Literary)",
 		},
 		{
-			Id:   "zh-Hans",
-			Name: "Chinese Simplified",
+			Id:   "zh",
+			Name: "Chinese (Simplified)",
 		},
 		{
-			Id:   "zh-Hant",
-			Name: "Chinese Traditional",
+			Id:   "zh-TW",
+			Name: "Chinese (Traditional)",
 		},
 		{
 			Id:   "hr",

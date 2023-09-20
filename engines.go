@@ -320,6 +320,15 @@ func ddgVqdUpdate() {
 func translateDuckDuckGo(to string, from string, query string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
+	if to == "zh" {
+		to = "zh-Hans"
+	} else if from == "zh" {
+		from = "zh-Hans"
+	} else if from == "zh-TW" {
+		from = "zh-Hant"
+	} else if to == "zh-TW" {
+		to = "zh-Hant"
+	}
 	var ToValid bool
 	var FromValid bool
 	for _, v := range langListDuckDuckGo("sl") {
