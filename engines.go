@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -45,7 +46,8 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
-	data := []byte(`f.req=[[["MkEWBc", "[[\"`+text+`\",\"`+from+`\",\"`+to+`\",1],[]]",null,"generic"]]]`)
+	escapeText := url.QueryEscape(text)
+	data := []byte(`f.req=[[["MkEWBc", "[[\"`+escapeText+`\",\"`+from+`\",\"`+to+`\",1],[]]",null,"generic"]]]`)
 	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", data, "application/x-www-form-urlencoded")
 	if err != nil {
 		return LangOut{}, err
