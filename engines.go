@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/OwO-Network/gdeeplx"
 	"github.com/google/go-querystring/query"
@@ -47,7 +48,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	}
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
 	escapeText := url.QueryEscape(text)
-	data := []byte(`f.req=[[["MkEWBc", "[[\"`+escapeText+`\",\"`+from+`\",\"`+to+`\",1],[]]",null,"generic"]]]`)
+	data := []byte(`f.req=[[["MkEWBc", "[[\"` + escapeText + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]`)
 	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", data, "application/x-www-form-urlencoded")
 	if err != nil {
 		return LangOut{}, err
@@ -385,11 +386,17 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 func TranslateAll(to string, from string, query string) []LangOut {
 	engines := []string{"reverso", "google", "libre", "watson", "mymemory", "yandex", "deepl", "duckduckgo"}
 	langout := []LangOut{}
+	var wg sync.WaitGroup
 	for i := 0; i < len(engines); i++ {
-		data, err := Translate(engines[i], to, from, query)
-		if err == nil {
-			langout = append(langout, data)
-		}
+		wg.Add(1)
+		go func(i int) {
+			data, err := Translate(engines[i], to, from, query)
+			if err == nil {
+				langout = append(langout, data)
+			}
+			wg.Done()
+		}(i)
 	}
+	wg.Wait()
 	return langout
 }
