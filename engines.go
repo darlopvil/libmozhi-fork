@@ -277,7 +277,21 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		return LangOut{}, err
 	}
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
+
 	var langout LangOut
+
+	yandexDictOut, err := getRequest("https://dictionary.yandex.net/dicservice.json/queryCorpus?srv=tr-text&ui=en&src=" + text + "&lang=" + from + "-" + to)
+	if err == nil {
+		for _, example := range gjson.Get(yandexDictOut, "result").Array() {
+			var WordChoices WordChoices // WordChoices is the struct as well as var name
+			WordChoices.Word = example.Get("translation.text").String()
+			for _, sentence := range example.Get("examples").Array() {
+				WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, sentence.Get("src").String())
+				WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, sentence.Get("dst").String())
+			}
+			langout.WordChoices = append(langout.WordChoices, WordChoices)
+		}
+	}
 	langout.OutputText = gjsonArr[0].String()
 	langout.Engine = "yandex"
 	langout.SourceLang = FromOrig
