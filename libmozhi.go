@@ -9,11 +9,17 @@ type List struct {
 	Id   string
 }
 type LangOut struct {
-	Engine     string `json:"engine"`
-	AutoDetect string `json:"detected"`
-	OutputText string `json:"translated-text"`
-	SourceLang string `json:"source_language"`
-	TargetLang string `json:"target_language"`
+	Engine      string        `json:"engine"`
+	AutoDetect  string        `json:"detected"`
+	OutputText  string        `json:"translated-text"`
+	SourceLang  string        `json:"source_language"`
+	TargetLang  string        `json:"target_language"`
+	WordChoices []WordChoices `json:"word_choices"`
+}
+type WordChoices struct {
+	Word           string   `json:"word"`
+	ExamplesSource []string `json:"examples_source"`
+	ExamplesTarget []string `json:"examples_target"`
 }
 
 func LangList(engine string, listType string) ([]List, error) {

@@ -92,7 +92,7 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 	if FromValid != true {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
-	json := []byte(`{ "format": "text", "from": "` + from + `", "to": "` + to + `", "input":"` + query + `", "options": {"sentenceSplitter": false, "origin":"translation.web", contextResults: false, languageDetection: true} }`)
+	json := []byte(`{ "format": "text", "from": "` + from + `", "to": "` + to + `", "input":"` + query + `", "options": {"sentenceSplitter": false, "origin":"translation.web", contextResults: true, languageDetection: true} }`)
 	reversoOut, err := postRequest("https://api.reverso.net/translate/v1/translation", json, "application/json")
 	if err != nil {
 		return LangOut{}, err
@@ -103,6 +103,18 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 	langout.Engine = "reverso"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
+	examples := gjson.Get(reversoOut, "contextResults.results")
+	for _, translation := range examples.Array() {
+		var WordChoices WordChoices // WordChoices is the struct as well as var name
+		WordChoices.Word = translation.Get("translation").String()
+		for _, source := range translation.Get("sourceExamples").Array() {
+			WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, source.String())
+		}
+		for _, target := range translation.Get("targetExamples").Array() {
+			WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, target.String())
+		}
+		langout.WordChoices = append(langout.WordChoices, WordChoices)
+	}
 	return langout, nil
 }
 
