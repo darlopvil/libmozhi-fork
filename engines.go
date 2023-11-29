@@ -186,6 +186,7 @@ func translateWatson(to string, from string, query string) (LangOut, error) {
 		from = langout.AutoDetect
 	}
 	query = strings.ReplaceAll(query, "\n", "\\n\\n")
+	query = strings.ReplaceAll(query, "\r", "\\r\\r")
 	json := []byte(`{"text":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
 	watsonOut, err := postRequest("https://www.ibm.com/demos/live/watson-language-translator/api/translate/text", json, "application/json")
 	if err != nil {
@@ -193,6 +194,7 @@ func translateWatson(to string, from string, query string) (LangOut, error) {
 	}
 	gjsonArr := gjson.Get(watsonOut, "payload.translations.0.translation").Array()
 	text := strings.ReplaceAll(gjsonArr[0].String(), "\n\n", "\n")
+	text = strings.ReplaceAll(text, "\r\r", "\r")
 	langout.OutputText = text
 	langout.Engine = "watson"
 	langout.SourceLang = FromOrig
