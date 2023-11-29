@@ -46,10 +46,15 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	if FromValid != true {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
+	text = strings.ReplaceAll(text, "\n", "\\\\n")
+	text = strings.ReplaceAll(text, "\r", "\\\\r")
+	//text = strings.ReplaceAll(text, "\r", "")
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
-	escapeText := url.QueryEscape(text)
-	data := []byte(`f.req=[[["MkEWBc", "[[\"` + escapeText + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]`)
-	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", data, "application/x-www-form-urlencoded")
+	data := `[[["MkEWBc","[[\"` + text + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]&`
+	escapeData := url.PathEscape(data)
+	//escapeData = strings.ReplaceAll(escapeData, "+", )
+	q := `f.req=` + escapeData
+	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(q), "application/x-www-form-urlencoded")
 	if err != nil {
 		return LangOut{}, err
 	}
@@ -60,7 +65,12 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 
 	var langout LangOut
 	// Thanks jsonselector.com
-	langout.OutputText = gjson.Get(initial, "1.0.0.5.0.4.0.0").String()
+	textArr := gjson.Get(initial, "1.0.0.5.#.0")
+	var textNew string
+	for _, text := range textArr.Array() {
+		textNew = textNew + text.String()
+	}
+	langout.OutputText = textNew
 	if from == "auto" {
 		langout.AutoDetect = gjson.Get(initial, "0.2").String()
 	}
@@ -289,7 +299,9 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		for _, example := range gjson.Get(yandexDictOut, "result").Array() {
 			var WordChoices WordChoices // WordChoices is the struct as well as var name
 			WordChoices.Word = example.Get("translation.text").String()
-			if WordChoices.Word == "" { WordChoices.Word = "other translations" }
+			if WordChoices.Word == "" {
+				WordChoices.Word = "other translations"
+			}
 			for _, sentence := range example.Get("examples").Array() {
 				WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, sentence.Get("src").String())
 				WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, sentence.Get("dst").String())
