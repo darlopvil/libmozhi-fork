@@ -185,13 +185,15 @@ func translateWatson(to string, from string, query string) (LangOut, error) {
 		langout.AutoDetect, _ = AutoDetectWatson(query)
 		from = langout.AutoDetect
 	}
+	query = strings.ReplaceAll(query, "\n", "\\n\\n")
 	json := []byte(`{"text":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
 	watsonOut, err := postRequest("https://www.ibm.com/demos/live/watson-language-translator/api/translate/text", json, "application/json")
 	if err != nil {
 		return LangOut{}, err
 	}
 	gjsonArr := gjson.Get(watsonOut, "payload.translations.0.translation").Array()
-	langout.OutputText = gjsonArr[0].String()
+	text := strings.ReplaceAll(gjsonArr[0].String(), "\n\n", "\n")
+	langout.OutputText = text
 	langout.Engine = "watson"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
@@ -285,6 +287,7 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		for _, example := range gjson.Get(yandexDictOut, "result").Array() {
 			var WordChoices WordChoices // WordChoices is the struct as well as var name
 			WordChoices.Word = example.Get("translation.text").String()
+			if WordChoices.Word == "" { WordChoices.Word = "other translations" }
 			for _, sentence := range example.Get("examples").Array() {
 				WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, sentence.Get("src").String())
 				WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, sentence.Get("dst").String())
