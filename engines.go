@@ -74,6 +74,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	if from == "auto" {
 		langout.AutoDetect = gjson.Get(initial, "0.2").String()
 	}
+	langout.Transliteration = gjson.Get(initial, "1.0.0.1").String()
 	langout.Engine = "google"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
@@ -114,6 +115,7 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
 	examples := gjson.Get(reversoOut, "contextResults.results")
+	langout.Transliteration = gjson.Get(reversoOut, "contextResults.results.0.transliteration").String()
 	for _, translation := range examples.Array() {
 		var WordChoices WordChoices // WordChoices is the struct as well as var name
 		WordChoices.Word = translation.Get("translation").String()
@@ -313,6 +315,8 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	langout.Engine = "yandex"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
+	translit, _ := getRequest("https://translate.yandex.net/translit/translit?lang="+to+"&text="+url.PathEscape(langout.OutputText))
+	langout.Transliteration = strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(translit, "\\n", "\n"), "\\r", ""), `"`), `"`)
 	return langout, nil
 }
 
