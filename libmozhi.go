@@ -9,13 +9,14 @@ type List struct {
 	Id   string
 }
 type LangOut struct {
-	Engine      string        `json:"engine"`
-	AutoDetect  string        `json:"detected"`
-	OutputText  string        `json:"translated-text"`
-	SourceLang  string        `json:"source_language"`
-	TargetLang  string        `json:"target_language"`
-	WordChoices []WordChoices `json:"word_choices"`
-	Transliteration string	`json:"transliteration"`
+	Engine                string        `json:"engine"`
+	AutoDetect            string        `json:"detected"`
+	OutputText            string        `json:"translated-text"`
+	SourceLang            string        `json:"source_language"`
+	TargetLang            string        `json:"target_language"`
+	WordChoices           []WordChoices `json:"word_choices"`
+	SourceTransliteration string        `json:"source_transliteration"`
+	TargetTransliteration string        `json:"target_transliteration"`
 }
 type WordChoices struct {
 	Word           string   `json:"word"`
