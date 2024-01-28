@@ -61,6 +61,9 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	googleOut = strings.TrimPrefix(googleOut, ")]}'")
 	googleOut = strings.TrimSuffix(googleOut, "]")
 	googleOut = strings.TrimPrefix(googleOut, "[")
+	if !gjson.Valid(googleOut) {
+		return LangOut{}, errors.New("invalid json")
+	}
 	initial := gjson.Get(googleOut, "0.2").String()
 
 	var langout LangOut
@@ -126,6 +129,9 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 	if err != nil {
 		return LangOut{}, err
 	}
+	if !gjson.Valid(reversoOut) {
+		return LangOut{}, errors.New("invalid json")
+	}
 	gjsonArr := gjson.Get(reversoOut, "translation").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -179,6 +185,9 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 	if err != nil {
 		return LangOut{}, err
 	}
+	if !gjson.Valid(libreTranslateOut) {
+		return LangOut{}, errors.New("invalid json")
+	}
 	gjsonArr := gjson.Get(libreTranslateOut, "translatedText").Array()
 	var langout LangOut
 	langout.OutputText = gjsonArr[0].String()
@@ -225,6 +234,9 @@ func translateWatson(to string, from string, query string) (LangOut, error) {
 	if err != nil {
 		return LangOut{}, err
 	}
+	if !gjson.Valid(watsonOut) {
+		return LangOut{}, errors.New("invalid json")
+	}
 	gjsonArr := gjson.Get(watsonOut, "payload.translations.0.translation").Array()
 	text := strings.ReplaceAll(gjsonArr[0].String(), "\n\n", "\n")
 	text = strings.ReplaceAll(text, "\r\r", "\r")
@@ -266,6 +278,9 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	myMemoryOut, err := getRequest("https://api.mymemory.translated.net/get?" + v.Encode())
 	if err != nil {
 		return LangOut{}, err
+	}
+	if !gjson.Valid(myMemoryOut) {
+		return LangOut{}, errors.New("invalid json")
 	}
 	gjsonArr := gjson.Get(myMemoryOut, "responseData.translatedText").Array()
 	var langout LangOut
@@ -312,6 +327,9 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	yandexOut, err := postRequest("https://translate.yandex.net/api/v1/tr.json/translate?"+v.Encode(), []byte(""), "application/json")
 	if err != nil {
 		return LangOut{}, err
+	}
+	if !gjson.Valid(yandexOut) {
+		return LangOut{}, errors.New("invalid json")
 	}
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
 
@@ -441,6 +459,9 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 	duckDuckGoOut, err := postRequest(url, []byte(query), "application/json")
 	if err != nil {
 		return LangOut{}, err
+	}
+	if !gjson.Valid(duckDuckGoOut) {
+		return LangOut{}, errors.New("invalid json")
 	}
 	gjsonArr := gjson.Get(duckDuckGoOut, "translated").Array()
 	langout.OutputText = gjsonArr[0].String()

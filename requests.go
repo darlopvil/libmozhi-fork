@@ -3,12 +3,16 @@ package libmozhi
 import (
 	"bytes"
 	"io"
+	"context"
+	"time"
 	"net/http"
 )
 
 func postRequest(url string, data []byte, contenttype string) (string, error) {
 	bodyReader := bytes.NewReader(data)
-	r, err := http.NewRequest(http.MethodPost, url, bodyReader)
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +38,9 @@ func postRequest(url string, data []byte, contenttype string) (string, error) {
 }
 
 func getRequest(url string) (string, error) {
-	r, err := http.NewRequest("GET", url, nil)
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
