@@ -2,16 +2,16 @@ package libmozhi
 
 import (
 	"bytes"
-	"io"
 	"context"
-	"time"
+	"io"
 	"net/http"
+	"time"
 )
 
 func postRequest(url string, data []byte, contenttype string) (string, error) {
 	bodyReader := bytes.NewReader(data)
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
 	if err != nil {
 		return "", err
@@ -38,8 +38,8 @@ func postRequest(url string, data []byte, contenttype string) (string, error) {
 }
 
 func getRequest(url string) (string, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	r, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
