@@ -11,7 +11,7 @@ pipeline:
       - ssh-keyscan -t ed25519 codeberg.org >> ~/.ssh/known_hosts
       - eval `ssh-agent`
       - echo "$SSH_KEY" | tr -d '\r' | ssh-add -
-      - git clone https://codeberg.org/aryak/libmozhi.git libmozhi
+      - git clone git@codeberg.org:aryak/libmozhi.git libmozhi
       - cd libmozhi
       # Actual command
       - bash -c "go run cmds/retrieve.go > langlists.go"
