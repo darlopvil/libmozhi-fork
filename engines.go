@@ -61,7 +61,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	googleOut = strings.TrimPrefix(googleOut, ")]}'")
 	googleOut = strings.TrimSuffix(googleOut, "]")
 	googleOut = strings.TrimPrefix(googleOut, "[")
-	if !gjson.Valid(googleOut+"]") {
+	if !gjson.Valid(googleOut + "]") {
 		return LangOut{}, errors.New("invalid json")
 	}
 	initial := gjson.Get(googleOut, "0.2").String()

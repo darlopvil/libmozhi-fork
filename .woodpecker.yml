@@ -1,0 +1,21 @@
+pipeline:
+  update_languages:
+    image: golang:1.22-bookworm
+    secrets: [ssh_key, mail]
+    when:
+      - event: cron
+        cron: update_languages
+        branch: master
+    commands:
+      - mkdir ~/.ssh
+      - ssh-keyscan -t ed25519 codeberg.org >> ~/.ssh/known_hosts
+      - eval `ssh-agent`
+      - echo "$SSH_KEY" | tr -d '\r' | ssh-add -
+      # Actual command
+      - bash -c "go run cmds/retrieve.go > langlists.go"
+      # Git configuration
+      - git config --global user.email $MAIL
+      - git config --global user.name "Woodpecker CI"
+      - git add -A
+      - git commit -m "Updated languages"
+      - git push -u origin master
