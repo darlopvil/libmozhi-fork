@@ -491,3 +491,32 @@ func TranslateAll(to string, from string, query string) []LangOut {
 	wg.Wait()
 	return langout
 }
+
+func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
+	enginesFull := []string{"reverso", "google", "libre", "watson", "mymemory", "yandex", "deepl", "duckduckgo"}
+	for i := range engines {
+		valid := false
+		for j := range enginesFull {
+			if engines[i] == enginesFull[j] {
+				valid = true
+			}
+		}
+		if valid == false {
+			return []LangOut{}, errors.New("Engine "+engines[i]+"not supported or implemented")
+		}
+	}
+	langout := []LangOut{}
+	var wg sync.WaitGroup
+	for i := 0; i < len(engines); i++ {
+		wg.Add(1)
+		go func(i int) {
+			data, err := Translate(engines[i], to, from, query)
+			if err == nil {
+				langout = append(langout, data)
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	return langout, nil
+}
