@@ -2,17 +2,17 @@ package libmozhi
 
 import (
 	"errors"
+	"github.com/tidwall/gjson"
 	"net/url"
 	"strings"
-	"github.com/tidwall/gjson"
 )
 
 type ImgOut struct {
-	SourceB64 string
-	TranslatedImgB64 string
-	SourceLang string
-	TargetLang string
-	SourceTextParsed string
+	SourceB64            string
+	TranslatedImgB64     string
+	SourceLang           string
+	TargetLang           string
+	SourceTextParsed     string
 	TranslatedTextParsed string
 }
 
@@ -45,7 +45,7 @@ func ImageGoogle(to string, from string, imgB64 string) (ImgOut, error) {
 		return ImgOut{}, errors.New("Source language code invalid")
 	}
 	data := url.Values{}
-	data.Set("f.req", `[[["WqWDPb","[[\"` + string(imgB64) + `\",\"image/png\"],\"` + from + `\",\"` + to + `\"]",null,"generic"]]]`)
+	data.Set("f.req", `[[["WqWDPb","[[\"`+string(imgB64)+`\",\"image/png\"],\"`+from+`\",\"`+to+`\"]",null,"generic"]]]`)
 	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(data.Encode()), "application/x-www-form-urlencoded")
 	if err != nil {
 		return ImgOut{}, err

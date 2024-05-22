@@ -17,6 +17,8 @@ type LangOut struct {
 	WordChoices           []WordChoices `json:"word_choices"`
 	SourceTransliteration string        `json:"source_transliteration"`
 	TargetTransliteration string        `json:"target_transliteration"`
+	SourceSynonyms        []string      `json:"source_synonyms"`
+	TargetSynonyms        []string      `json:"target_synonyms"`
 }
 type WordChoices struct {
 	Word           string   `json:"word"`

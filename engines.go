@@ -340,6 +340,7 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		for _, example := range gjson.Get(yandexDictOut, "result").Array() {
 			var WordChoices WordChoices // WordChoices is the struct as well as var name
 			WordChoices.Word = example.Get("translation.text").String()
+			langout.TargetSynonyms = append(langout.TargetSynonyms, WordChoices.Word)
 			if WordChoices.Word == "" {
 				WordChoices.Word = "other translations"
 			}
@@ -348,6 +349,15 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 				WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, sentence.Get("dst").String())
 			}
 			langout.WordChoices = append(langout.WordChoices, WordChoices)
+		}
+	}
+	yandexDict2Out, err := getRequest("https://dictionary.yandex.net/dicservice.json/lookupMultiple?ui=en&srv=tr-text&type=regular%2Csyn%2Cant%2Cderiv&lang=en-fr&dict="+from+"-"+to+".regular%2Cen.syn%2Cen.ant%2Cen.deriv&exp_def&text="+text)
+	if err == nil {
+		for _, syn := range gjson.Get(yandexDict2Out, "en.syn.0.tr").Array() {
+			langout.SourceSynonyms = append(langout.SourceSynonyms, syn.Get("text").String())
+			for _, syn2 := range syn.Get("syn").Array() {
+				langout.SourceSynonyms = append(langout.SourceSynonyms, syn2.Get("text").String())
+			}
 		}
 	}
 	langout.OutputText = gjsonArr[0].String()
@@ -502,7 +512,7 @@ func TranslateSome(engines []string, to string, from string, query string) ([]La
 			}
 		}
 		if valid == false {
-			return []LangOut{}, errors.New("Engine "+engines[i]+"not supported or implemented")
+			return []LangOut{}, errors.New("Engine " + engines[i] + "not supported or implemented")
 		}
 	}
 	langout := []LangOut{}
