@@ -2,6 +2,7 @@ package libmozhi
 
 import (
 	"errors"
+	"github.com/gocolly/colly"
 	"io"
 	"net/http"
 	"net/url"
@@ -154,6 +155,30 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 		}
 		langout.WordChoices = append(langout.WordChoices, WordChoices)
 	}
+	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
+	if !ok {
+		UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+	}
+	sc1 := colly.NewCollector(colly.AllowedDomains("synonyms.reverso.net"), colly.UserAgent(UserAgent))
+	sc1.OnHTML("body", func(e *colly.HTMLElement) {
+		e.ForEach("div.pannel li a.synonym", func(i int, el *colly.HTMLElement) {
+			langout.SourceSynonyms = append(langout.SourceSynonyms, el.Text)
+		})
+		e.ForEach("div.antonyms-wrapper ul.word-box li a", func(i int, el *colly.HTMLElement) {
+			langout.SourceAntonyms = append(langout.SourceAntonyms, el.Text)
+		})
+	})
+	sc1.Visit("https://synonyms.reverso.net/synonym/" + from + "/" + query)
+	sc2 := colly.NewCollector(colly.AllowedDomains("synonyms.reverso.net"), colly.UserAgent(UserAgent))
+	sc2.OnHTML("body", func(e *colly.HTMLElement) {
+		e.ForEach("div.pannel li a.synonym", func(i int, el *colly.HTMLElement) {
+			langout.TargetSynonyms = append(langout.TargetSynonyms, el.Text)
+		})
+		e.ForEach("div.antonyms-wrapper ul.word-box li a", func(i int, el *colly.HTMLElement) {
+			langout.TargetAntonyms = append(langout.TargetAntonyms, el.Text)
+		})
+	})
+	sc2.Visit("https://synonyms.reverso.net/synonym/" + to + "/" + langout.OutputText)
 	return langout, nil
 }
 
@@ -351,7 +376,7 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 			langout.WordChoices = append(langout.WordChoices, WordChoices)
 		}
 	}
-	yandexDict2Out, err := getRequest("https://dictionary.yandex.net/dicservice.json/lookupMultiple?ui=en&srv=tr-text&type=regular%2Csyn%2Cant%2Cderiv&lang=en-fr&dict="+from+"-"+to+".regular%2Cen.syn%2Cen.ant%2Cen.deriv&exp_def&text="+text)
+	yandexDict2Out, err := getRequest("https://dictionary.yandex.net/dicservice.json/lookupMultiple?ui=en&srv=tr-text&type=regular%2Csyn%2Cant%2Cderiv&lang=en-fr&dict=" + from + "-" + to + ".regular%2Cen.syn%2Cen.ant%2Cen.deriv&exp_def&text=" + text)
 	if err == nil {
 		for _, syn := range gjson.Get(yandexDict2Out, "en.syn.0.tr").Array() {
 			langout.SourceSynonyms = append(langout.SourceSynonyms, syn.Get("text").String())

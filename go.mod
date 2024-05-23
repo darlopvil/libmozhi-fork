@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	github.com/OwO-Network/gdeeplx v0.0.1
 	github.com/carlmjohnson/requests v0.23.5
+	github.com/gocolly/colly v1.2.0
 	github.com/google/go-querystring v1.1.0
 	github.com/google/uuid v1.4.0
 	github.com/tidwall/gjson v1.17.0
@@ -19,7 +20,6 @@ require (
 	github.com/antchfx/xmlquery v1.3.18 // indirect
 	github.com/antchfx/xpath v1.2.4 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
