@@ -225,53 +225,6 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 	return langout, nil
 }
 
-func translateWatson(to string, from string, query string) (LangOut, error) {
-	FromOrig := from
-	ToOrig := to
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListWatson("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
-	}
-	var langout LangOut
-	if from == "auto" {
-		langout.AutoDetect, _ = AutoDetectWatson(query)
-		from = langout.AutoDetect
-	}
-	query = strings.ReplaceAll(query, "\n", "\\n\\n")
-	query = strings.ReplaceAll(query, "\r", "\\r\\r")
-	json := []byte(`{"text":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
-	watsonOut, err := postRequest("https://www.ibm.com/demos/live/watson-language-translator/api/translate/text", json, "application/json")
-	if err != nil {
-		return LangOut{}, err
-	}
-	if !gjson.Valid(watsonOut) {
-		return LangOut{}, errors.New("invalid json")
-	}
-	gjsonArr := gjson.Get(watsonOut, "payload.translations.0.translation").Array()
-	text := strings.ReplaceAll(gjsonArr[0].String(), "\n\n", "\n")
-	text = strings.ReplaceAll(text, "\r\r", "\r")
-	langout.OutputText = text
-	langout.Engine = "watson"
-	langout.SourceLang = FromOrig
-	langout.TargetLang = ToOrig
-	return langout, nil
-}
-
 func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
@@ -510,7 +463,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 }
 
 func TranslateAll(to string, from string, query string) []LangOut {
-	engines := []string{"reverso", "google", "libre", "watson", "mymemory", "yandex", "deepl", "duckduckgo"}
+	engines := []string{"reverso", "google", "libre", "mymemory", "yandex", "deepl", "duckduckgo"}
 	langout := []LangOut{}
 	var wg sync.WaitGroup
 	for i := 0; i < len(engines); i++ {
@@ -528,7 +481,7 @@ func TranslateAll(to string, from string, query string) []LangOut {
 }
 
 func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
-	enginesFull := []string{"reverso", "google", "libre", "watson", "mymemory", "yandex", "deepl", "duckduckgo"}
+	enginesFull := []string{"reverso", "google", "libre", "mymemory", "yandex", "deepl", "duckduckgo"}
 	for i := range engines {
 		valid := false
 		for j := range enginesFull {

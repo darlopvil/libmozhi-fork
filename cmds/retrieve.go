@@ -23,7 +23,6 @@ func main() {
 	package libmozhi`
 	data = data + DataGenerator(LangListGoogle, "langListGoogle")
 	data = data + DataGenerator(LangListDeepl, "langListDeepl")
-	data = data + DataGenerator(LangListWatson, "langListWatson")
 	data = data + DataGenerator(LangListMyMemory, "langListMyMemory")
 	// Captcha appears too often, so I can't auto-scrape this realistically
 	//data = data + DataGenerator(LangListYandex, "langListYandex")
@@ -61,7 +60,6 @@ func DataGenerator(LangListFunc fn, GeneratedFuncName string) string {
 	return data
 }
 
-// To get new language lists for google yandex and libertranslate.
 func LangListGoogle(listType string) []List {
 	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
 	if !ok {
@@ -185,44 +183,6 @@ func LangListDeepl(listType string) []List {
 		ListInfo.Name = match[i][2]
 		ListInfo.Id = match[i][1]
 		ListData = append(ListData, ListInfo)
-	}
-	return ListData
-}
-
-func LangListWatson(listType string) []List {
-	r, _ := http.NewRequest("GET", "https://www.ibm.com/demos/live/watson-language-translator/bundle.js", nil)
-
-	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-	r.Header.Set("User-Agent", UserAgent)
-
-	client := &http.Client{}
-	res, _ := client.Do(r)
-
-	defer res.Body.Close()
-
-	body, _ := io.ReadAll(res.Body)
-	re := regexp.MustCompile(`Ai=\[.*?\]`)
-	match := re.FindString(string(body))
-	match = strings.TrimPrefix(match, "Ai=")
-	match = strings.ReplaceAll(match, "language:", `"language":`)
-	match = strings.ReplaceAll(match, "name:", `"name":`)
-	if !gjson.Valid(match) {
-		return []List{}
-	}
-	gjsonArr := gjson.Parse(match).Array()
-	var ListData []List
-	for _, r := range gjsonArr {
-		code := r.Get("language").String()
-		name := r.Get("name").String()
-
-		ListData = append(ListData, List{Id: code, Name: name})
-	}
-	if listType == "sl" {
-		auto := List{
-			Id:   "auto",
-			Name: "Detect Language",
-		}
-		ListData = append(ListData, auto)
 	}
 	return ListData
 }

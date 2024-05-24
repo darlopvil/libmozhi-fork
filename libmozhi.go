@@ -41,8 +41,6 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListReverso(listType)
 	} else if engine == "deepl" {
 		data = langListDeepl(listType)
-	} else if engine == "watson" {
-		data = langListWatson(listType)
 	} else if engine == "yandex" {
 		data = langListYandex(listType)
 	} else if engine == "mymemory" {
@@ -67,8 +65,6 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateReverso(to, from, text)
 	} else if engine == "deepl" {
 		data, err = translateDeepl(to, from, text)
-	} else if engine == "watson" {
-		data, err = translateWatson(to, from, text)
 	} else if engine == "yandex" {
 		data, err = translateYandex(to, from, text)
 	} else if engine == "mymemory" {
