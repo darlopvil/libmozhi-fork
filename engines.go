@@ -220,7 +220,12 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
 	if from == "auto" {
-		langout.AutoDetect, _ = AutoDetectLibreTranslate(query)
+		json := []byte(`{"q":"` + query + `"}`)
+		libreTranslateOut, err := postRequest(os.Getenv("MOZHI_LIBRETRANSLATE_URL")+"/detect", json, "application/json")
+		if err == nil {
+			gjsonArr := gjson.Get(libreTranslateOut, "0.language").Array()
+			langout.AutoDetect = gjsonArr[0].String()
+		}
 	}
 	return langout, nil
 }
