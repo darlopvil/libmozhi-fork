@@ -21,9 +21,14 @@ type LangOut struct {
 	TargetSynonyms        []string      `json:"target_synonyms"`
 	SourceAntonyms        []string      `json:"source_antonyms"`
 	TargetAntonyms        []string      `json:"target_antonyms"`
+	SourceEquivalentTargetLang	map[string][]string	`json:"source_equivalent_target_lang"`
+	TargetEquivalentSourceLang map[string][]string	`json:"target_equivalent_source_lang"`
 }
 type WordChoices struct {
 	Word           string   `json:"word"`
+	Definition	string	`json:"definition"`
+	// Example is for google alone; since it does not have a linked example for source & target
+	Example	string	`json:"example"`
 	ExamplesSource []string `json:"examples_source"`
 	ExamplesTarget []string `json:"examples_target"`
 }

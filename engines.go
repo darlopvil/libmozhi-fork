@@ -67,30 +67,13 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	}
 	initial := gjson.Get(googleOut, "0.2").String()
 
-	var langout LangOut
-	//		//for _, source := range translation.Get("sourceExamples").Array() {
-	//		//	WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, source.String())
-	//		//}
-	//		//for _, target := range translation.Get("targetExamples").Array() {
-	//		//	WordChoices.ExamplesTarget = append(WordChoices.ExamplesTarget, target.String())
-	//		//}
-	//		//langout.WordChoices = append(langout.WordChoices, WordChoices)
-	//	//3.2.0.x.1
-	//	sourceExamples := gjson.Get(initial, "3.2.0").Array()
-	//	//[1][0][0][5][0][4][x][0]
-	//	wordChoices := gjson.Get(initial, "1.0.0.5.0.4").Array()
-	//	for _, ex := range sourceExamples {
-	//		WordChoices.ExamplesSource = append(WordChoices.ExamplesSource, gjson.Get(ex, "1"))
-	//	}
-	//	for _, choice := range wordChoices {
-	//		langout.WordChoices = append(WordChoices.ExamplesSource, gjson.Get(ex, "1"))
-	//	}
 	// Thanks jsonselector.com
 	textArr := gjson.Get(initial, "1.0.0.5.#.0")
 	var textNew string
 	for _, text := range textArr.Array() {
 		textNew = textNew + text.String()
 	}
+	langout := dictDataGoogle(text, textNew, from, to)
 	langout.OutputText = textNew
 	if from == "auto" {
 		langout.AutoDetect = gjson.Get(initial, "0.2").String()
