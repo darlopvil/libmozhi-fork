@@ -71,8 +71,9 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	textArr := gjson.Get(initial, "1.0.0.5.#.0")
 	var textNew string
 	for _, text := range textArr.Array() {
-		textNew = textNew + text.String()
+		textNew = textNew + text.String() + " "
 	}
+	textNew = strings.TrimSuffix(textNew, " ")
 	langout := dictDataGoogle(text, textNew, from, to)
 	langout.OutputText = textNew
 	if from == "auto" {
