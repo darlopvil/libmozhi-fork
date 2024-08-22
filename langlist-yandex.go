@@ -411,5 +411,15 @@ func langListYandex(listType string) []List {
 			Name: "Zulu",
 		},
 	}
-	return ListData
+	var ListD []List
+	if listType == "sl" {
+		auto := []List{{
+			Id:   "auto",
+			Name: "Detect Language",
+		}}
+		ListD = append(append([]List{}, auto...), ListData...)
+	} else {
+		ListD = ListData
+	}
+	return ListD
 }

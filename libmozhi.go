@@ -9,26 +9,26 @@ type List struct {
 	Id   string
 }
 type LangOut struct {
-	Engine                string        `json:"engine"`
-	AutoDetect            string        `json:"detected"`
-	OutputText            string        `json:"translated-text"`
-	SourceLang            string        `json:"source_language"`
-	TargetLang            string        `json:"target_language"`
-	WordChoices           []WordChoices `json:"word_choices"`
-	SourceTransliteration string        `json:"source_transliteration"`
-	TargetTransliteration string        `json:"target_transliteration"`
-	SourceSynonyms        []string      `json:"source_synonyms"`
-	TargetSynonyms        []string      `json:"target_synonyms"`
-	SourceAntonyms        []string      `json:"source_antonyms"`
-	TargetAntonyms        []string      `json:"target_antonyms"`
-	SourceEquivalentTargetLang	map[string][]string	`json:"source_equivalent_target_lang"`
-	TargetEquivalentSourceLang map[string][]string	`json:"target_equivalent_source_lang"`
+	Engine                     string              `json:"engine"`
+	AutoDetect                 string              `json:"detected"`
+	OutputText                 string              `json:"translated-text"`
+	SourceLang                 string              `json:"source_language"`
+	TargetLang                 string              `json:"target_language"`
+	WordChoices                []WordChoices       `json:"word_choices"`
+	SourceTransliteration      string              `json:"source_transliteration"`
+	TargetTransliteration      string              `json:"target_transliteration"`
+	SourceSynonyms             []string            `json:"source_synonyms"`
+	TargetSynonyms             []string            `json:"target_synonyms"`
+	SourceAntonyms             []string            `json:"source_antonyms"`
+	TargetAntonyms             []string            `json:"target_antonyms"`
+	SourceEquivalentTargetLang map[string][]string `json:"source_equivalent_target_lang"`
+	TargetEquivalentSourceLang map[string][]string `json:"target_equivalent_source_lang"`
 }
 type WordChoices struct {
-	Word           string   `json:"word"`
-	Definition	string	`json:"definition"`
+	Word       string `json:"word"`
+	Definition string `json:"definition"`
 	// Example is for google alone; since it does not have a linked example for source & target
-	Example	string	`json:"example"`
+	Example        string   `json:"example"`
 	ExamplesSource []string `json:"examples_source"`
 	ExamplesTarget []string `json:"examples_target"`
 }

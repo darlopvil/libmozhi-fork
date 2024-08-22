@@ -3,15 +3,15 @@ package libmozhi
 import (
 	"github.com/tidwall/gjson"
 	"net/url"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // TODO: Remove all the repetitive code for source/target
 func dictDataGoogle(text string, translated string, from string, to string) LangOut {
 	var langout LangOut
 
-	dictData := `[[["rPsWke","[[\"`+text+`\",\"`+from+`\",\"`+to+`\"],1]",null,"generic"]]]`
+	dictData := `[[["rPsWke","[[\"` + text + `\",\"` + from + `\",\"` + to + `\"],1]",null,"generic"]]]`
 	escapedDictData := url.PathEscape(dictData)
 	dictQuery := `f.req=` + escapedDictData
 	dictOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(dictQuery), "application/x-www-form-urlencoded")
@@ -43,7 +43,7 @@ func dictDataGoogle(text string, translated string, from string, to string) Lang
 		}
 	}
 
-	dictData = `[[["rPsWke","[[\"`+translated+`\",\"`+to+`\",\"`+from+`\"],1]",null,"generic"]]]`
+	dictData = `[[["rPsWke","[[\"` + translated + `\",\"` + to + `\",\"` + from + `\"],1]",null,"generic"]]]`
 	escapedDictData = url.PathEscape(dictData)
 	dictQuery = `f.req=` + escapedDictData
 	dictOut, err = postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(dictQuery), "application/x-www-form-urlencoded")

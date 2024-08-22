@@ -288,7 +288,12 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	}
 	uuidWithHyphen := uuid.New()
 	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
-	opt := Options{from + "-" + to, text, "android", uuid + "-0-0"}
+	var opt Options
+	if from == "auto" {
+		opt = Options{to, text, "android", uuid + "-0-0"}
+	} else {
+		opt = Options{from + "-" + to, text, "android", uuid + "-0-0"}
+	}
 	v, _ := query.Values(opt)
 
 	yandexOut, err := postRequest("https://translate.yandex.net/api/v1/tr.json/translate?"+v.Encode(), []byte(""), "application/json")
@@ -301,6 +306,10 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
 
 	var langout LangOut
+
+	if from == "auto" {
+		langout.AutoDetect = strings.TrimSuffix(gjson.Get(yandexOut, "lang").String(), "-"+to)
+	}
 
 	yandexDictOut, err := getRequest("https://dictionary.yandex.net/dicservice.json/queryCorpus?srv=tr-text&ui=en&src=" + text + "&lang=" + from + "-" + to)
 	if err == nil {
