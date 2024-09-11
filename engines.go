@@ -49,6 +49,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	}
 	text = strings.ReplaceAll(text, "\n", "\\\\n")
 	text = strings.ReplaceAll(text, "\r", "\\\\r")
+	text = strings.ReplaceAll(text, `"`, `\\\"`)
 	//text = strings.ReplaceAll(text, "\r", "")
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
 	data := `[[["MkEWBc","[[\"` + text + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]&`
