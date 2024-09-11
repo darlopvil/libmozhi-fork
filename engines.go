@@ -418,10 +418,12 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 	var ToValid bool
 	var FromValid bool
 	for _, v := range langListDuckDuckGo("sl") {
-		if v.Id == to {
+		//if v.Id == to { CHANGE TO THIS ONCE WE MOVE TO AUTOMATED FETCHING OF LangLists for DDG
+		if v.Id == ToOrig {
 			ToValid = true
 		}
-		if v.Id == from {
+		//if v.Id == from { CHANGE TO THIS ONCE WE MOVE TO AUTOMATED FETCHING OF LangLists for DDG
+		if v.Id == FromOrig {
 			FromValid = true
 		}
 		if FromValid == true && ToValid == true {
