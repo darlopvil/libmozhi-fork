@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/OwO-Network/gdeeplx"
+	deeplx "github.com/OwO-Network/DeepLX/translate"
 	"github.com/google/go-querystring/query"
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
@@ -370,20 +370,16 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	if FromValid != true {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
-	answer, err := gdeeplx.Translate(text, from, to, 0)
+	answer, err := deeplx.TranslateByDeepLX(from,to, text, "html", "", "")
 	if err != nil {
-		return LangOut{}, errors.New("failed")
+		return LangOut{}, err
 	}
-	answer1 := answer.(map[string]interface{})
-	ans := answer1["data"].(string)
 	var langout LangOut
-	langout.OutputText = ans
+	langout.OutputText = answer.Data
 	langout.Engine = "deepl"
-	if from == "auto" {
-		langout.AutoDetect = strings.ToLower(answer1["detected_lang"].(string))
-	}
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
+	langout.TargetSynonyms = answer.Alternatives
 	return langout, nil
 }
 
