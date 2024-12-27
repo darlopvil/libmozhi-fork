@@ -184,6 +184,14 @@ func LangListDeepl(listType string) []List {
 		ListInfo.Id = match[i][1]
 		ListData = append(ListData, ListInfo)
 	}
+	if listType == "tl" {
+		ListData = append(ListData, List{Id: "pt-br", Name: "Portugese (Brazillian)"})
+		ListData = append(ListData, List{Id: "pt-pt", Name: "Portugese (Non-Brazillian)"})
+		ListData = append(ListData, List{Id: "zh-hans", Name: "Chinese (Simplified)"})
+		ListData = append(ListData, List{Id: "zh-hant", Name: "Chinese (Traditional)"})
+		ListData = append(ListData, List{Id: "en-us", Name: "Portugese (American)"})
+		ListData = append(ListData, List{Id: "en-gb", Name: "Portugese (British)"})
+	}
 	return ListData
 }
 
