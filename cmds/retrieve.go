@@ -196,40 +196,49 @@ func LangListDeepl(listType string) []List {
 }
 
 func LangListMyMemory(listType string) []List {
-	UserAgent, ok := os.LookupEnv("MOZHI_USER_AGENT")
-	if !ok {
-		UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+	req, err := http.NewRequest("GET", "https://www.matecat.com/api/v2/languages", nil)
+	if err != nil {
+		fmt.Println(err)
 	}
-	sc := colly.NewCollector(colly.AllowedDomains("mymemory.translated.net"), colly.UserAgent(UserAgent))
-	var ListData []List
-	sc.OnHTML("div.source_target", func(e *colly.HTMLElement) {
-		if listType == "sl" {
-			e.ForEach("select[name='sl'] option", func(i int, el *colly.HTMLElement) {
-				var id string
-				if el.Attr("value") != "zh-TW" {
-					id = string(strings.Split(el.Attr("value"), "-")[0])
-				}
-				var ListInfo List
-				ListInfo.Name = el.Text
-				ListInfo.Id = id
-				ListData = append(ListData, ListInfo)
-			})
-		} else {
-			e.ForEach("select[name='tl'] option", func(i int, el *colly.HTMLElement) {
-				var id string
-				if el.Attr("value") != "zh-TW" {
-					id = string(strings.Split(el.Attr("value"), "-")[0])
-				}
-				var ListInfo List
-				ListInfo.Name = el.Text
-				ListInfo.Id = id
-				ListData = append(ListData, ListInfo)
-			})
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+	}
 
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	bodyStr := string(body)
+
+	if !gjson.Valid(bodyStr) {
+		return []List{}
+	}
+	gjsonArr := gjson.Parse(bodyStr).Array()
+	var ListData []List
+	for i, r := range gjsonArr {
+		code := r.Get("code").String()
+		name := r.Get("name").String()
+		codeSmall := strings.Split(code, "-")[0]
+		// If previous or next value is also the same language, then dont remove the trailing characters
+		if i > 0 && i < len(gjsonArr)-1 {
+			if (strings.Split(gjsonArr[i+1].Get("code").String(), "-")[0] == codeSmall || strings.Split(gjsonArr[i-1].Get("code").String(), "-")[0] == codeSmall) {
+				codeSmall = code
+			}
 		}
-	})
-	url := "https://mymemory.translated.net"
-	sc.Visit(url)
+		ListData = append(ListData, List{Id: codeSmall, Name: name})
+	}
+	if listType == "sl" {
+		auto := List{
+			Id:   "auto",
+			Name: "Detect Language",
+		}
+		ListData = append(ListData, auto)
+	}
 	return ListData
 }
 
