@@ -19,7 +19,7 @@ func ttsGoogle(lang string, text string) ([]byte, error) {
 		Text   string `url:"q"`
 		Client string `url:"client"`
 	}
-	opt := Options{lang, text, "tw-ob"}
+	opt := Options{lang, text, "webapp"}
 	v, _ := query.Values(opt)
 
 	var file string
