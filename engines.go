@@ -370,7 +370,7 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	if FromValid != true {
 		return LangOut{}, errors.New("Source language code invalid")
 	}
-	answer, err := deeplx.TranslateByDeepLX(from,to, text, "plaintext", "", "")
+	answer, err := deeplx.TranslateByDeepLX(from,to, text, "plaintext", "", "0")
 	if err != nil {
 		return LangOut{}, err
 	}
