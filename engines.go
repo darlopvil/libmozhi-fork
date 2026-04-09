@@ -64,7 +64,7 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	googleOut = strings.TrimSuffix(googleOut, "]")
 	googleOut = strings.TrimPrefix(googleOut, "[")
 	if !gjson.Valid(googleOut + "]") {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	initial := gjson.Get(googleOut, "0.2").String()
 
@@ -116,7 +116,7 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 		return LangOut{}, err
 	}
 	if !gjson.Valid(reversoOut) {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	gjsonArr := gjson.Get(reversoOut, "translation").Array()
 	var langout LangOut
@@ -196,7 +196,7 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 		return LangOut{}, err
 	}
 	if !gjson.Valid(libreTranslateOut) {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	gjsonArr := gjson.Get(libreTranslateOut, "translatedText").Array()
 	var langout LangOut
@@ -248,7 +248,7 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 		return LangOut{}, err
 	}
 	if !gjson.Valid(myMemoryOut) {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	gjsonArr := gjson.Get(myMemoryOut, "responseData.translatedText").Array()
 	var langout LangOut
@@ -302,7 +302,7 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		return LangOut{}, err
 	}
 	if !gjson.Valid(yandexOut) {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
 
@@ -446,7 +446,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 		return LangOut{}, err
 	}
 	if !gjson.Valid(duckDuckGoOut) {
-		return LangOut{}, errors.New("invalid json")
+		return LangOut{}, errors.New("instance has been rate limited")
 	}
 	gjsonArr := gjson.Get(duckDuckGoOut, "translated").Array()
 	langout.OutputText = gjsonArr[0].String()
