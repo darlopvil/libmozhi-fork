@@ -26,26 +26,10 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	if to == "nb" {
 		to = "no"
 	} else if from == "nb" {
-		to = "no"
+		from = "no"
 	}
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListGoogle("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target Language Code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListGoogle("sl"), langListGoogle("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	text = strings.ReplaceAll(text, "\n", "\\\\n")
 	text = strings.ReplaceAll(text, "\r", "\\\\r")
@@ -91,24 +75,8 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 func translateReverso(to string, from string, query string) (LangOut, error) {
 	ToOrig := to
 	FromOrig := from
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListReverso("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListReverso("sl"), langListReverso("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	json := []byte(`{ "format": "text", "from": "` + from + `", "to": "` + to + `", "input":"` + query + `", "options": {"sentenceSplitter": false, "origin":"translation.web", contextResults: true, languageDetection: true} }`)
 	reversoOut, err := postRequest("https://api.reverso.net/translate/v1/translation", json, "application/json")
@@ -170,24 +138,8 @@ func translateReverso(to string, from string, query string) (LangOut, error) {
 func translateLibreTranslate(to string, from string, query string) (LangOut, error) {
 	ToOrig := to
 	FromOrig := from
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListLibreTranslate("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListLibreTranslate("sl"), langListLibreTranslate("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	json := []byte(`{"q":"` + query + `","source":"` + from + `","target":"` + to + `"}`)
 	// TODO: Make it configurable
@@ -218,24 +170,8 @@ func translateLibreTranslate(to string, from string, query string) (LangOut, err
 func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListMyMemory("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListMyMemory("sl"), langListMyMemory("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	type Options struct {
 		Translate string `url:"langpair"`
@@ -262,24 +198,8 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 func translateYandex(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListYandex("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListYandex("sl"), langListYandex("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	type Options struct {
 		Translate string `url:"lang"`
@@ -351,24 +271,8 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 func translateDeepl(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListDeepl("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListDeepl("sl"), langListDeepl("tl"), from, to); err != nil {
+		return LangOut{}, err
 	}
 	answer, err := deeplx.TranslateByDeepLX(from,to, text, "plaintext", "", "0")
 	if err != nil {
@@ -412,26 +316,11 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 	} else if to == "zh-TW" {
 		to = "zh-Hant"
 	}
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListDuckDuckGo("sl") {
-		//if v.Id == to { CHANGE TO THIS ONCE WE MOVE TO AUTOMATED FETCHING OF LangLists for DDG
-		if v.Id == ToOrig {
-			ToValid = true
-		}
-		//if v.Id == from { CHANGE TO THIS ONCE WE MOVE TO AUTOMATED FETCHING OF LangLists for DDG
-		if v.Id == FromOrig {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return LangOut{}, errors.New("Target language code invalid")
-	}
-	if FromValid != true {
-		return LangOut{}, errors.New("Source language code invalid")
+	// Validate against the original user-facing IDs for now. Once DDG lang lists
+	// are fetched from upstream automatically, this should validate `from`/`to`
+	// directly instead of the pre-normalized aliases.
+	if err := validateLanguagePair(langListDuckDuckGo("sl"), langListDuckDuckGo("tl"), FromOrig, ToOrig); err != nil {
+		return LangOut{}, err
 	}
 	var url string
 	var langout LangOut

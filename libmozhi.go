@@ -4,6 +4,27 @@ import (
 	"errors"
 )
 
+func hasLang(list []List, id string) bool {
+	for _, entry := range list {
+		if entry.Id == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func validateLanguagePair(sourceLangs []List, targetLangs []List, from string, to string) error {
+	if !hasLang(targetLangs, to) {
+		return errors.New("Target language code invalid")
+	}
+	if !hasLang(sourceLangs, from) {
+		return errors.New("Source language code invalid")
+	}
+
+	return nil
+}
+
 type List struct {
 	Name string
 	Id   string
