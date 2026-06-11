@@ -23,26 +23,10 @@ func ImageGoogle(to string, from string, imgB64 string) (ImgOut, error) {
 	if to == "nb" {
 		to = "no"
 	} else if from == "nb" {
-		to = "no"
+		from = "no"
 	}
-	var ToValid bool
-	var FromValid bool
-	for _, v := range langListGoogle("sl") {
-		if v.Id == to {
-			ToValid = true
-		}
-		if v.Id == from {
-			FromValid = true
-		}
-		if FromValid == true && ToValid == true {
-			break
-		}
-	}
-	if ToValid != true {
-		return ImgOut{}, errors.New("Target Language Code invalid")
-	}
-	if FromValid != true {
-		return ImgOut{}, errors.New("Source language code invalid")
+	if err := validateLanguagePair(langListGoogle("sl"), langListGoogle("tl"), from, to); err != nil {
+		return ImgOut{}, err
 	}
 	data := url.Values{}
 	data.Set("f.req", `[[["WqWDPb","[[\"`+string(imgB64)+`\",\"image/png\"],\"`+from+`\",\"`+to+`\"]",null,"generic"]]]`)
