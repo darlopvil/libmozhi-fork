@@ -177,8 +177,9 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	type Options struct {
 		Translate string `url:"langpair"`
 		Text      string `url:"q"`
+		Email     string `url:"de,omitempty"`
 	}
-	opt := Options{from + "|" + to, text}
+	opt := Options{from + "|" + to, text, os.Getenv("MOZHI_MYMEMORY_EMAIL")}
 	v, _ := query.Values(opt)
 	myMemoryOut, err := getRequest("https://api.mymemory.translated.net/get?" + v.Encode())
 	if err != nil {
