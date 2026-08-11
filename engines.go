@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"encoding/json"
 
 	deeplx "github.com/OwO-Network/DeepLX/translate"
 	"github.com/google/go-querystring/query"
@@ -274,15 +275,65 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	if err := validateLanguagePair(langListDeepl("sl"), langListDeepl("tl"), from, to); err != nil {
 		return LangOut{}, err
 	}
-	answer, err := deeplx.TranslateByDeepLX(from,to, text, "plaintext", "", "0")
-	if err != nil {
-		return LangOut{}, err
-	}
+
 	var langout LangOut
-	langout.OutputText = answer.Data
 	langout.Engine = "deepl"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
+
+	// Si hay key oficial, usa la API REST oficial.
+	if key := os.Getenv("MOZHI_DEEPL_API_KEY"); key != "" {
+		endpoint := "https://api.deepl.com/v2/translate"
+		if strings.HasSuffix(key, ":fx") { // las keys free acaban en ":fx"
+			endpoint = "https://api-free.deepl.com/v2/translate"
+		}
+
+		payloadMap := map[string]interface{}{
+			"text":        []string{text},
+			"target_lang": strings.ToUpper(to),
+		}
+		if from != "auto" { // DeepL autodetecta si omites source_lang
+			payloadMap["source_lang"] = strings.ToUpper(from)
+		}
+		payload, err := json.Marshal(payloadMap)
+		if err != nil {
+			return LangOut{}, err
+		}
+
+		req, err := http.NewRequest("POST", endpoint, strings.NewReader(string(payload)))
+		if err != nil {
+			return LangOut{}, err
+		}
+		req.Header.Set("Authorization", "DeepL-Auth-Key "+key)
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return LangOut{}, err
+		}
+		defer res.Body.Close()
+
+		out, err := io.ReadAll(res.Body)
+		if err != nil {
+			return LangOut{}, err
+		}
+		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
+			return LangOut{}, errors.New("deepl official api error: " + res.Status)
+		}
+
+		langout.OutputText = gjson.GetBytes(out, "translations.0.text").String()
+		if from == "auto" {
+			langout.AutoDetect = strings.ToLower(gjson.GetBytes(out, "translations.0.detected_source_language").String())
+		}
+		return langout, nil
+	}
+
+	// Fallback: endpoint gratis reverse-engineered (comportamiento original).
+	answer, err := deeplx.TranslateByDeepLX(from, to, text, "plaintext", "", "0")
+	if err != nil {
+		return LangOut{}, err
+	}
+	langout.OutputText = answer.Data
 	langout.TargetSynonyms = answer.Alternatives
 	return langout, nil
 }

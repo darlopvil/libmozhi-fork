@@ -15,18 +15,20 @@ type reversoTTS struct {
 
 func ttsGoogle(lang string, text string) ([]byte, error) {
 	type Options struct {
+		IE     string `url:"ie"`
 		Lang   string `url:"tl"`
 		Text   string `url:"q"`
 		Client string `url:"client"`
 	}
-	opt := Options{lang, text, "webapp"}
+	opt := Options{"UTF-8", lang, text, "tw-ob"}
 	v, _ := query.Values(opt)
-
 	var file string
 	url := "https://translate.google.com/translate_tts?" + v.Encode()
+	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	err := requests.
 		URL(url).
 		ToString(&file).
+		UserAgent(UserAgent).
 		Fetch(context.Background())
 	if err != nil {
 		return []byte(""), err
