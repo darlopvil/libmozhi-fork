@@ -1,3 +1,7 @@
+> **Fork notice:** versión modificada de [aryak/libmozhi](https://codeberg.org/aryak/libmozhi),
+> mantenida por [darlopvil](https://github.com/darlopvil). Cambios y roadmap en los
+> [issues](https://github.com/darlopvil/libmozhi-fork/issues). Licencia AGPLv3, igual que upstream.
+
 # LibMozhi
 [![AGPLv3](https://shields.io/badge/License-AGPL%20v3-blue.svg)](https://gnu.org/licenses/agpl-3.0.en.html)
 [![Matrix](https://img.shields.io/badge/matrix-000000?style=for-the-badge&logo=Matrix&logoColor=white)](https://matrix.to/#/#mozhi:projectsegfau.lt)
