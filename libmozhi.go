@@ -73,6 +73,8 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListMyMemory(listType)
 	} else if engine == "duckduckgo" {
 		data = langListDuckDuckGo(listType)
+	} else if engine == "gemini" {
+		data = langListGemini(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -97,6 +99,8 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateMyMemory(to, from, text)
 	} else if engine == "duckduckgo" {
 		data, err = translateDuckDuckGo(to, from, text)
+	} else if engine == "gemini" {
+		data, err = translateGemini(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}

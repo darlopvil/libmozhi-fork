@@ -339,6 +339,89 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+func translateGemini(to string, from string, text string) (LangOut, error) {
+	FromOrig := from
+	ToOrig := to
+	if err := validateLanguagePair(langListGemini("sl"), langListGemini("tl"), from, to); err != nil {
+		return LangOut{}, err
+	}
+
+	var langout LangOut
+	langout.Engine = "gemini"
+	langout.SourceLang = FromOrig
+	langout.TargetLang = ToOrig
+
+	key := os.Getenv("MOZHI_GEMINI_API_KEY")
+	if key == "" {
+		return LangOut{}, errors.New("gemini engine requires MOZHI_GEMINI_API_KEY")
+	}
+	baseURL := os.Getenv("MOZHI_GEMINI_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+	}
+	model := os.Getenv("MOZHI_GEMINI_MODEL")
+	if model == "" {
+		model = "gemini-flash-latest"
+	}
+
+	// Nombre legible del idioma destino (mejor que el código para el prompt)
+	targetName := to
+	for _, l := range langListGemini("tl") {
+		if l.Id == to {
+			targetName = l.Name
+			break
+		}
+	}
+	srcInstruction := "the source language"
+	if from != "auto" {
+		for _, l := range langListGemini("sl") {
+			if l.Id == from {
+				srcInstruction = l.Name
+				break
+			}
+		}
+	}
+
+	systemPrompt := "You are a professional translator. Translate the user's text from " + srcInstruction + " into " + targetName + ". Produce a faithful and natural translation: preserve the original meaning, tone and register, do not add, omit or explain anything. Output ONLY the translated text, with no quotes, no notes and no preamble."
+
+	payloadMap := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": text},
+		},
+		"temperature": 0.3,
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return LangOut{}, err
+	}
+
+	req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
+	if err != nil {
+		return LangOut{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return LangOut{}, err
+	}
+	defer res.Body.Close()
+
+	out, err := io.ReadAll(res.Body)
+	if err != nil {
+		return LangOut{}, err
+	}
+	if res.StatusCode != 200 || !gjson.ValidBytes(out) {
+		return LangOut{}, errors.New("gemini api error: " + res.Status)
+	}
+
+	langout.OutputText = strings.TrimSpace(gjson.GetBytes(out, "choices.0.message.content").String())
+	return langout, nil
+}
+
 func ddgVqdUpdate() {
 	r, _ := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
 
@@ -401,7 +484,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 }
 
 func TranslateAll(to string, from string, query string) []LangOut {
-	engines := []string{"reverso", "google", "libre", "mymemory", "yandex", "deepl", "duckduckgo"}
+	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini"}
 	langout := []LangOut{}
 	var wg sync.WaitGroup
 	for i := 0; i < len(engines); i++ {
@@ -419,7 +502,7 @@ func TranslateAll(to string, from string, query string) []LangOut {
 }
 
 func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
-	enginesFull := []string{"reverso", "google", "libre", "mymemory", "yandex", "deepl", "duckduckgo"}
+	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini"}
 	for i := range engines {
 		valid := false
 		for j := range enginesFull {
