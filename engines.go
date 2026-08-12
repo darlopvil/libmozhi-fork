@@ -511,6 +511,23 @@ func translateGemini(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+// textraDictPID mapea un par de idiomas al glosario de sistema de TexTra, si existe.
+func textraDictPID(from, to string) string {
+	pairs := map[string]string{
+		"en_ja":    "ld.en_ja",
+		"ja_en":    "ld.ja_en",
+		"ja_ko":    "kj.ja_ko",
+		"ko_ja":    "kj.ko_ja",
+		"ja_zh-CN": "er.ja_zh-CN",
+		"ja_zh-TW": "er.ja_zh-TW",
+		"zh-CN_ja": "er.zh-CN_ja",
+		"zh-TW_ja": "er.zh-TW_ja",
+		"en_en":    "wn.en_en",
+	}
+	return pairs[from+"_"+to]
+}
+
+
 func translateTexTra(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
@@ -582,6 +599,34 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 	}
 
 	langout.OutputText = gjson.GetBytes(out, "resultset.result.text").String()
+	// Diccionario: sólo si el par tiene un glosario de sistema disponible.
+	if pid := textraDictPID(from, to); pid != "" {
+		dictBody := url.Values{}
+		dictBody.Set("access_token", token)
+		dictBody.Set("key", key)
+		dictBody.Set("name", name)
+		dictBody.Set("type", "json")
+		dictBody.Set("pid", pid)
+		dictBody.Set("lang_s", from)
+		dictBody.Set("text", text)
+		if dictRes, derr := http.PostForm(baseURL+"/api/lookup/", dictBody); derr == nil {
+			dout, _ := io.ReadAll(dictRes.Body)
+			dictRes.Body.Close()
+			if gjson.ValidBytes(dout) && gjson.GetBytes(dout, "resultset.code").Int() == 0 {
+				seen := map[string]bool{}
+				for _, lk := range gjson.GetBytes(dout, "resultset.result.lookup").Array() {
+					for _, term := range lk.Get("term").Array() {
+						t := term.Get("target").String()
+						if t == "" || seen[t] {
+							continue
+						}
+						seen[t] = true
+						langout.WordChoices = append(langout.WordChoices, WordChoices{Word: t})
+					}
+				}
+			}
+		}
+	}
 	return langout, nil
 }
 
