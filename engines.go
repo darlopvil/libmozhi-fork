@@ -422,6 +422,81 @@ func translateGemini(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+func translateTexTra(to string, from string, text string) (LangOut, error) {
+	FromOrig := from
+	ToOrig := to
+	if err := validateLanguagePair(langListTexTra("sl"), langListTexTra("tl"), from, to); err != nil {
+		return LangOut{}, err
+	}
+
+	var langout LangOut
+	langout.Engine = "textra"
+	langout.SourceLang = FromOrig
+	langout.TargetLang = ToOrig
+
+	key := os.Getenv("MOZHI_TEXTRA_API_KEY")
+	secret := os.Getenv("MOZHI_TEXTRA_API_SECRET")
+	name := os.Getenv("MOZHI_TEXTRA_LOGIN_ID")
+	if key == "" || secret == "" || name == "" {
+		return LangOut{}, errors.New("textra engine requires MOZHI_TEXTRA_API_KEY, _API_SECRET and _LOGIN_ID")
+	}
+	baseURL := os.Getenv("MOZHI_TEXTRA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://mt-auto-minhon-mlt.ucri.jgn-x.jp"
+	}
+
+	// 1) Conseguir access_token (OAuth2 client-credentials)
+	tokenBody := url.Values{}
+	tokenBody.Set("grant_type", "client_credentials")
+	tokenBody.Set("client_id", key)
+	tokenBody.Set("client_secret", secret)
+	tokenRes, err := http.PostForm(baseURL+"/oauth2/token.php", tokenBody)
+	if err != nil {
+		return LangOut{}, err
+	}
+	defer tokenRes.Body.Close()
+	tokenOut, err := io.ReadAll(tokenRes.Body)
+	if err != nil {
+		return LangOut{}, err
+	}
+	if !gjson.ValidBytes(tokenOut) {
+		return LangOut{}, errors.New("textra token error")
+	}
+	token := gjson.GetBytes(tokenOut, "access_token").String()
+	if token == "" {
+		return LangOut{}, errors.New("textra: no access token")
+	}
+
+	// 2) Traducir. El par de idiomas va en la URL: generalNT_<from>_<to>
+	apiParam := "generalNT_" + from + "_" + to
+	transBody := url.Values{}
+	transBody.Set("access_token", token)
+	transBody.Set("key", key)
+	transBody.Set("name", name)
+	transBody.Set("type", "json")
+	transBody.Set("text", text)
+
+	transRes, err := http.PostForm(baseURL+"/api/mt/"+apiParam+"/", transBody)
+	if err != nil {
+		return LangOut{}, err
+	}
+	defer transRes.Body.Close()
+	out, err := io.ReadAll(transRes.Body)
+	if err != nil {
+		return LangOut{}, err
+	}
+	if !gjson.ValidBytes(out) {
+		return LangOut{}, errors.New("textra api error")
+	}
+	if gjson.GetBytes(out, "resultset.code").Int() != 0 {
+		return LangOut{}, errors.New("textra: " + gjson.GetBytes(out, "resultset.message").String())
+	}
+
+	langout.OutputText = gjson.GetBytes(out, "resultset.result.text").String()
+	return langout, nil
+}
+
+
 func ddgVqdUpdate() {
 	r, _ := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
 
@@ -484,7 +559,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 }
 
 func TranslateAll(to string, from string, query string) []LangOut {
-	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini"}
+	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra"}
 	langout := []LangOut{}
 	var wg sync.WaitGroup
 	for i := 0; i < len(engines); i++ {
@@ -502,7 +577,7 @@ func TranslateAll(to string, from string, query string) []LangOut {
 }
 
 func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
-	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini"}
+	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra"}
 	for i := range engines {
 		valid := false
 		for j := range enginesFull {
