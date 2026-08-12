@@ -85,6 +85,8 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListOpenrouterGemma(listType)
 	} else if engine == "nemotron" {
 		data = langListOpenrouterNemotron(listType)
+	} else if engine == "mistral" {
+		data = langListMistral(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -121,6 +123,8 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateOpenrouterGemma(to, from, text)
 	} else if engine == "nemotron" {
 		data, err = translateOpenrouterNemotron(to, from, text)
+	} else if engine == "mistral" {
+		data, err = translateMistral(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}
