@@ -79,6 +79,12 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListTexTra(listType)
 	} else if engine == "groq" {
 		data = langListGroq(listType)
+	} else if engine == "gptoss" {
+		data = langListOpenrouterGptoss(listType)
+	} else if engine == "gemma" {
+		data = langListOpenrouterGemma(listType)
+	} else if engine == "nemotron" {
+		data = langListOpenrouterNemotron(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -109,6 +115,12 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateTexTra(to, from, text)
 	} else if engine == "groq" {
 		data, err = translateGroq(to, from, text)
+	} else if engine == "gptoss" {
+		data, err = translateOpenrouterGptoss(to, from, text)
+	} else if engine == "gemma" {
+		data, err = translateOpenrouterGemma(to, from, text)
+	} else if engine == "nemotron" {
+		data, err = translateOpenrouterNemotron(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}
