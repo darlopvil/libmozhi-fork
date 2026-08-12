@@ -121,6 +121,8 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsGoogle(lang, text)
 	} else if engine == "reverso" {
 		data, err = ttsReverso(lang, text)
+	} else if engine == "textra" {
+		data, err = ttsTexTra(lang, text)
 	} else {
 		return []byte(""), errors.New("Engine does not exist and/or doesn't support TTS and/or has been disabled.")
 	}

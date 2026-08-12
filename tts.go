@@ -3,9 +3,15 @@ package libmozhi
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/carlmjohnson/requests"
 	"github.com/google/go-querystring/query"
+	"github.com/tidwall/gjson"
 )
 
 type reversoTTS struct {
@@ -150,4 +156,68 @@ func ttsReverso(lang string, text string) ([]byte, error) {
 		return []byte(""), err
 	}
 	return []byte(file), nil
+}
+
+func ttsTexTra(lang string, text string) ([]byte, error) {
+	// Mapear el idioma al locale de TexTra TTS. Sólo hay 4 voces disponibles.
+	locales := map[string]string{
+		"ja":    "ja-JP",
+		"en":    "en-US",
+		"zh":    "zh-CN",
+		"zh-CN": "zh-CN",
+		"ko":    "ko-KR",
+	}
+	locale, ok := locales[lang]
+	if !ok {
+		return []byte(""), errors.New("textra tts: unsupported language")
+	}
+
+	key := os.Getenv("MOZHI_TEXTRA_API_KEY")
+	secret := os.Getenv("MOZHI_TEXTRA_API_SECRET")
+	name := os.Getenv("MOZHI_TEXTRA_LOGIN_ID")
+	if key == "" || secret == "" || name == "" {
+		return []byte(""), errors.New("textra tts requires credentials")
+	}
+	baseURL := os.Getenv("MOZHI_TEXTRA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://mt-auto-minhon-mlt.ucri.jgn-x.jp"
+	}
+
+	// token OAuth2
+	tokenBody := url.Values{}
+	tokenBody.Set("grant_type", "client_credentials")
+	tokenBody.Set("client_id", key)
+	tokenBody.Set("client_secret", secret)
+	tokenRes, err := http.PostForm(baseURL+"/oauth2/token.php", tokenBody)
+	if err != nil {
+		return []byte(""), err
+	}
+	tokenOut, _ := io.ReadAll(tokenRes.Body)
+	tokenRes.Body.Close()
+	token := gjson.GetBytes(tokenOut, "access_token").String()
+	if token == "" {
+		return []byte(""), errors.New("textra tts: no access token")
+	}
+
+	// petición TTS: devuelve wav crudo (RIFF/WAVE)
+	body := url.Values{}
+	body.Set("access_token", token)
+	body.Set("key", key)
+	body.Set("name", name)
+	body.Set("locale", locale)
+	body.Set("text", text)
+	res, err := http.PostForm(baseURL+"/api/tts/", body)
+	if err != nil {
+		return []byte(""), err
+	}
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		return []byte(""), err
+	}
+	// Si TexTra devolvió un error JSON en vez de audio, no es un wav.
+	if len(data) < 4 || string(data[0:4]) != "RIFF" {
+		return []byte(""), errors.New("textra tts: no audio returned")
+	}
+	return data, nil
 }
