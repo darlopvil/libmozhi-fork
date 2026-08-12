@@ -77,6 +77,8 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListGemini(listType)
 	} else if engine == "textra" {
 		data = langListTexTra(listType)
+	} else if engine == "groq" {
+		data = langListGroq(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -105,6 +107,8 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateGemini(to, from, text)
 	} else if engine == "textra" {
 		data, err = translateTexTra(to, from, text)
+	} else if engine == "groq" {
+		data, err = translateGroq(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -123,6 +127,8 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsReverso(lang, text)
 	} else if engine == "textra" {
 		data, err = ttsTexTra(lang, text)
+	} else if engine == "groq" {
+		data, err = ttsGroq(lang, text)
 	} else {
 		return []byte(""), errors.New("Engine does not exist and/or doesn't support TTS and/or has been disabled.")
 	}

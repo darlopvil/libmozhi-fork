@@ -693,7 +693,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 }
 
 func TranslateAll(to string, from string, query string) []LangOut {
-	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra"}
+	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq"}
 	langout := []LangOut{}
 	var wg sync.WaitGroup
 	for i := 0; i < len(engines); i++ {
@@ -711,7 +711,7 @@ func TranslateAll(to string, from string, query string) []LangOut {
 }
 
 func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
-	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra"}
+	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq"}
 	for i := range engines {
 		valid := false
 		for j := range enginesFull {
