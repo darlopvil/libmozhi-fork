@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"encoding/json"
+	"time"
 
 	deeplx "github.com/OwO-Network/DeepLX/translate"
 	"github.com/google/go-querystring/query"
@@ -339,6 +340,70 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+// geminiChat hace una llamada de chat al endpoint OpenAI-compatible de Gemini
+// y devuelve el content del primer choice. Reintenta ante 503/429 (picos del
+// tier gratis) hasta 3 veces con espera creciente.
+func geminiChat(baseURL, key, model, systemPrompt, userText string, temperature float64) (string, error) {
+	payloadMap := map[string]interface{}{
+		"model": model,
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userText},
+		},
+		"temperature": temperature,
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return "", err
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * time.Second) // 1s, luego 2s
+		}
+
+		req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Authorization", "Bearer "+key)
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		out, readErr := io.ReadAll(res.Body)
+		res.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			continue
+		}
+
+		// 503/429: saturación temporal → reintentar.
+		if res.StatusCode == 503 || res.StatusCode == 429 {
+			lastErr = errors.New("gemini api error: " + res.Status)
+			continue
+		}
+		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
+			return "", errors.New("gemini api error: " + res.Status)
+		}
+		return gjson.GetBytes(out, "choices.0.message.content").String(), nil
+	}
+	return "", lastErr
+}
+
+// stripJSONFences quita ```json ... ``` si el modelo envolvió la respuesta.
+func stripJSONFences(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "```json")
+	s = strings.TrimPrefix(s, "```")
+	s = strings.TrimSuffix(s, "```")
+	return strings.TrimSpace(s)
+}
+
 func translateGemini(to string, from string, text string) (LangOut, error) {
 	FromOrig := from
 	ToOrig := to
@@ -364,7 +429,7 @@ func translateGemini(to string, from string, text string) (LangOut, error) {
 		model = "gemini-flash-latest"
 	}
 
-	// Nombre legible del idioma destino (mejor que el código para el prompt)
+	// Nombre legible de los idiomas para los prompts.
 	targetName := to
 	for _, l := range langListGemini("tl") {
 		if l.Id == to {
@@ -372,53 +437,63 @@ func translateGemini(to string, from string, text string) (LangOut, error) {
 			break
 		}
 	}
-	srcInstruction := "the source language"
+	srcName := "the source language"
 	if from != "auto" {
 		for _, l := range langListGemini("sl") {
 			if l.Id == from {
-				srcInstruction = l.Name
+				srcName = l.Name
 				break
 			}
 		}
 	}
 
-	systemPrompt := "You are a professional translator. Translate the user's text from " + srcInstruction + " into " + targetName + ". Produce a faithful and natural translation: preserve the original meaning, tone and register, do not add, omit or explain anything. Output ONLY the translated text, with no quotes, no notes and no preamble."
-
-	payloadMap := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": text},
-		},
-		"temperature": 0.3,
-	}
-	payload, err := json.Marshal(payloadMap)
+	// 1) Traducción principal.
+	transSystem := "You are a professional translator. Translate the user's text from " + srcName + " into " + targetName + ". Produce a faithful and natural translation: preserve the original meaning, tone and register, do not add, omit or explain anything. Output ONLY the translated text, with no quotes, no notes and no preamble."
+	translated, err := geminiChat(baseURL, key, model, transSystem, text, 0.3)
 	if err != nil {
 		return LangOut{}, err
 	}
+	langout.OutputText = strings.TrimSpace(translated)
 
-	req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
-	if err != nil {
-		return LangOut{}, err
-	}
-	req.Header.Set("Authorization", "Bearer "+key)
-	req.Header.Set("Content-Type", "application/json")
+	// 2) Extras (diccionario / paráfrasis) sólo para textos cortos (<=8 palabras).
+	if len(strings.Fields(text)) <= 8 {
+		dictSystem := "You are a bilingual lexical assistant. Translating from " + srcName + " into " + targetName + ". Analyze the user text and return ONLY a JSON object (no markdown, no preamble) with this exact shape: {\"senses\":[{\"word\":\"<alt translation / sense / paraphrase>\",\"examples\":[{\"src\":\"<example in source lang>\",\"dst\":\"<its target translation>\"}]}],\"synonyms\":[\"<synonyms of the main translation, in target lang>\"],\"antonyms\":[\"<antonyms in target lang>\"]}. Rules: if the text is a single WORD or very short phrase, give its different SENSES (up to 5) with example sentences each, plus synonyms and antonyms. If it is a full SENTENCE, give up to 4 natural PARAPHRASES as senses (word = the paraphrase), with the paraphrase as src and its translation as dst; synonyms/antonyms may be empty. Always output valid JSON only."
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return LangOut{}, err
-	}
-	defer res.Body.Close()
+		if raw, derr := geminiChat(baseURL, key, model, dictSystem, text, 0.3); derr == nil {
+			raw = stripJSONFences(raw)
+			if gjson.Valid(raw) {
+				parsed := gjson.Parse(raw)
 
-	out, err := io.ReadAll(res.Body)
-	if err != nil {
-		return LangOut{}, err
-	}
-	if res.StatusCode != 200 || !gjson.ValidBytes(out) {
-		return LangOut{}, errors.New("gemini api error: " + res.Status)
+				for _, sense := range parsed.Get("senses").Array() {
+					var wc WordChoices
+					wc.Word = sense.Get("word").String()
+					for _, ex := range sense.Get("examples").Array() {
+						src := ex.Get("src").String()
+						dst := ex.Get("dst").String()
+						if src == "" && dst == "" {
+							continue
+						}
+						wc.ExamplesSource = append(wc.ExamplesSource, src)
+						wc.ExamplesTarget = append(wc.ExamplesTarget, dst)
+					}
+					if wc.Word != "" {
+						langout.WordChoices = append(langout.WordChoices, wc)
+					}
+				}
+				for _, s := range parsed.Get("synonyms").Array() {
+					if s.String() != "" {
+						langout.TargetSynonyms = append(langout.TargetSynonyms, s.String())
+					}
+				}
+				for _, a := range parsed.Get("antonyms").Array() {
+					if a.String() != "" {
+						langout.TargetAntonyms = append(langout.TargetAntonyms, a.String())
+					}
+				}
+			}
+		}
 	}
 
-	langout.OutputText = strings.TrimSpace(gjson.GetBytes(out, "choices.0.message.content").String())
 	return langout, nil
 }
 
