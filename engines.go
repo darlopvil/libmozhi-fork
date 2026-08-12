@@ -195,6 +195,20 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	langout.Engine = "mymemory"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
+
+	// Mapear los "matches" (traducciones alternativas de la memoria) a WordChoices.
+	// Filtros mínimos: sin duplicados exactos y sin vacíos. Sin ejemplos (MyMemory no los tiene).
+	seen := map[string]bool{}
+	seen[langout.OutputText] = true // no repetir la traducción principal
+	for _, m := range gjson.Get(myMemoryOut, "matches").Array() {
+		t := m.Get("translation").String()
+		if t == "" || seen[t] {
+			continue
+		}
+		seen[t] = true
+		langout.WordChoices = append(langout.WordChoices, WordChoices{Word: t})
+	}
+
 	return langout, nil
 }
 
