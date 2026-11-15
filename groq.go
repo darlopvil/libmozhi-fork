@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -18,24 +19,27 @@ import (
 // ============================================================================
 
 // groqChat: llamada al endpoint chat OpenAI-compatible de Groq, con reintentos 503/429.
-func groqChat(baseURL, key, model, systemPrompt, userText string, temperature float64) (string, error) {
-	payloadMap := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": userText},
-		},
-		"temperature": temperature,
-	}
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return "", err
-	}
-
+func groqChat(baseURL, key, prefs, systemPrompt, userText string, temperature float64) (string, error) {
 	var lastErr error
+	refreshed := false
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+		model, err := groqPickModel(baseURL, key, prefs)
+		if err != nil {
+			return "", err
+		}
+		payload, err := json.Marshal(map[string]interface{}{
+			"model": model,
+			"messages": []map[string]string{
+				{"role": "system", "content": systemPrompt},
+				{"role": "user", "content": userText},
+			},
+			"temperature": temperature,
+		})
+		if err != nil {
+			return "", err
 		}
 		req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
 		if err != nil {
@@ -60,7 +64,14 @@ func groqChat(baseURL, key, model, systemPrompt, userText string, temperature fl
 			continue
 		}
 		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
-			return "", errors.New("groq api error: " + res.Status)
+			apiErr := errors.New("groq api error: " + res.Status)
+			// Decommissioned or unknown model: retry once with the next one.
+			if !refreshed && groqModelGone(model, res.StatusCode, out) {
+				refreshed = true
+				lastErr = apiErr
+				continue
+			}
+			return "", apiErr
 		}
 		return gjson.GetBytes(out, "choices.0.message.content").String(), nil
 	}
@@ -96,10 +107,9 @@ func translateGroq(to string, from string, text string) (LangOut, error) {
 	if baseURL == "" {
 		baseURL = "https://api.groq.com/openai/v1"
 	}
+	// Comma-separated preference list; the first model Groq still lists as
+	// active is used (see groqPickModel).
 	model := os.Getenv("MOZHI_GROQ_MODEL")
-	if model == "" {
-		model = "llama-3.1-8b-instant"
-	}
 
 	targetName := to
 	for _, l := range langListGroq("tl") {
@@ -224,3 +234,106 @@ func ttsGroq(lang string, text string) ([]byte, error) {
 }
 // groqHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
 var groqHTTP = &http.Client{Timeout: 15 * time.Second}
+
+// ---------------------------------------------------------------------------
+// Groq model selection. MOZHI_GROQ_MODEL is a comma-separated preference
+// list; the first id Groq still lists as active is used, so a decommissioned
+// model falls through to the next one without touching the .env.
+// ---------------------------------------------------------------------------
+
+// Both currently active on Groq's free tier. gpt-oss-safeguard is left out
+// on purpose: it is a safety classifier, not a chat model.
+const groqDefaultModels = "openai/gpt-oss-20b,openai/gpt-oss-120b"
+
+const (
+	groqCatalogTTL = 24 * time.Hour
+	groqRefreshGap = time.Minute
+	groqGoneTTL    = 24 * time.Hour
+)
+
+var groqCatalog struct {
+	sync.Mutex
+	active  map[string]bool
+	fetched time.Time
+	tried   time.Time
+	gone    map[string]time.Time // id -> skipped until
+}
+
+func groqFetchModels(baseURL, key string) (map[string]bool, error) {
+	req, err := http.NewRequest("GET", baseURL+"/models", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	res, err := groqHTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 || !gjson.ValidBytes(body) {
+		return nil, errors.New("groq models list error: " + res.Status)
+	}
+	active := map[string]bool{}
+	for _, m := range gjson.GetBytes(body, "data").Array() {
+		if a := m.Get("active"); a.Exists() && !a.Bool() {
+			continue
+		}
+		active[m.Get("id").String()] = true
+	}
+	return active, nil
+}
+
+// groqPickModel returns the first preferred model that is currently usable.
+// If Groq's list can't be fetched, preferences are tried in order as is.
+func groqPickModel(baseURL, key, prefs string) (string, error) {
+	if strings.TrimSpace(prefs) == "" {
+		prefs = groqDefaultModels
+	}
+	c := &groqCatalog
+	c.Lock()
+	defer c.Unlock()
+
+	now := time.Now()
+	stale := c.active == nil || now.Sub(c.fetched) > groqCatalogTTL
+	if stale && now.Sub(c.tried) > groqRefreshGap {
+		c.tried = now
+		if active, err := groqFetchModels(baseURL, key); err == nil {
+			c.active, c.fetched = active, now
+		}
+	}
+	for _, id := range strings.Split(prefs, ",") {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if until, ok := c.gone[id]; ok && now.Before(until) {
+			continue
+		}
+		if c.active == nil || c.active[id] {
+			return id, nil
+		}
+	}
+	return "", errors.New("groq: none of the configured models is available (" + prefs + ")")
+}
+
+// groqModelGone reports whether Groq rejected the model itself (decommissioned
+// or unknown). If so the model is skipped and Groq's list is refreshed.
+func groqModelGone(model string, status int, body []byte) bool {
+	code := gjson.GetBytes(body, "error.code").String()
+	if status != 404 && code != "model_decommissioned" && code != "model_not_found" {
+		return false
+	}
+	c := &groqCatalog
+	c.Lock()
+	defer c.Unlock()
+	if c.gone == nil {
+		c.gone = map[string]time.Time{}
+	}
+	c.gone[model] = time.Now().Add(groqGoneTTL)
+	c.fetched = time.Time{}
+	return true
+}

@@ -13,30 +13,37 @@ import (
 )
 
 // ============================================================================
-// OPENROUTER Gptoss — isla autónoma. Modelo fijo: openai/gpt-oss-20b:free
+// OPENROUTER Gptoss — isla autónoma. Familia: baidu/ernie (modelos gratis descubiertos solos, ver openrouter_models.go)
 // ============================================================================
 
-func openrouterGptossChat(key, model, systemPrompt, userText string, temperature float64) (string, error) {
+func openrouterGptossChat(key, family, preferred, systemPrompt, userText string, temperature float64) (string, error) {
 	baseURL := os.Getenv("MOZHI_OPENROUTER_BASE_URL")
 	if baseURL == "" {
 		baseURL = "https://openrouter.ai/api/v1"
 	}
-	payloadMap := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": userText},
-		},
-		"temperature": temperature,
-	}
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return "", err
-	}
 	var lastErr error
+	refreshed := false
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+		// Current free models of this island's family, sent as OpenRouter's
+		// `models` fallback list: if the first one is saturated, the next
+		// one answers.
+		models, err := openrouterFreeModels(family, preferred)
+		if err != nil {
+			return "", err
+		}
+		payload, err := json.Marshal(map[string]interface{}{
+			"models": models,
+			"messages": []map[string]string{
+				{"role": "system", "content": systemPrompt},
+				{"role": "user", "content": userText},
+			},
+			"temperature": temperature,
+		})
+		if err != nil {
+			return "", err
 		}
 		req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
 		if err != nil {
@@ -56,11 +63,18 @@ func openrouterGptossChat(key, model, systemPrompt, userText string, temperature
 			continue
 		}
 		if res.StatusCode == 503 || res.StatusCode == 429 {
-			lastErr = errors.New("openrouter api error: " + res.Status)
+			lastErr = errors.New("openrouter api error: " + res.Status + openrouterErrMsg(out))
 			continue
 		}
 		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
-			return "", errors.New("openrouter api error: " + res.Status)
+			apiErr := errors.New("openrouter api error: " + res.Status + openrouterErrMsg(out))
+			// Retired or region-blocked model: retry once with a fresh list.
+			if !refreshed && openrouterModelRejected(models, res.StatusCode, out) {
+				refreshed = true
+				lastErr = apiErr
+				continue
+			}
+			return "", apiErr
 		}
 		return gjson.GetBytes(out, "choices.0.message.content").String(), nil
 	}
@@ -90,10 +104,13 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	if key == "" {
 		return LangOut{}, errors.New("openrouter engine requires MOZHI_OPENROUTER_API_KEY")
 	}
-	model := os.Getenv("MOZHI_OPENROUTER_GPTOSS_MODEL")
-	if model == "" {
-		model = "openai/gpt-oss-20b:free"
+	// Family of free models this island uses; the current ones are discovered
+	// automatically. _MODEL is optional: a preferred id, used while it exists.
+	family := os.Getenv("MOZHI_OPENROUTER_GPTOSS_FAMILY")
+	if family == "" {
+		family = "baidu/ernie"
 	}
+	model := os.Getenv("MOZHI_OPENROUTER_GPTOSS_MODEL")
 
 	targetName := to
 	for _, l := range langListOpenrouterGptoss("tl") {
@@ -113,7 +130,7 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	}
 
 	transSystem := "You are a professional translator. Translate the user's text from " + srcName + " into " + targetName + ". Produce a faithful and natural translation: preserve the original meaning, tone and register, do not add, omit or explain anything. Output ONLY the translated text, with no quotes, no notes and no preamble."
-	translated, err := openrouterGptossChat(key, model, transSystem, text, 0.3)
+	translated, err := openrouterGptossChat(key, family, model, transSystem, text, 0.3)
 	if err != nil {
 		return LangOut{}, err
 	}
@@ -121,7 +138,7 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 
 	if len(strings.Fields(text)) <= 8 {
 		dictSystem := "You are a bilingual lexical assistant. Translating from " + srcName + " into " + targetName + ". Analyze the user text and return ONLY a JSON object (no markdown, no preamble) with this exact shape: {\"senses\":[{\"word\":\"<alt translation / sense / paraphrase>\",\"examples\":[{\"src\":\"<example in source lang>\",\"dst\":\"<its target translation>\"}]}],\"synonyms\":[\"<synonyms of the main translation, in target lang>\"],\"antonyms\":[\"<antonyms in target lang>\"]}. Rules: if the text is a single WORD or very short phrase, give its different SENSES (up to 5) with example sentences each, plus synonyms and antonyms. If it is a full SENTENCE, give up to 4 natural PARAPHRASES as senses (word = the paraphrase), with the paraphrase as src and its translation as dst; synonyms/antonyms may be empty. Always output valid JSON only."
-		if raw, derr := openrouterGptossChat(key, model, dictSystem, text, 0.3); derr == nil {
+		if raw, derr := openrouterGptossChat(key, family, model, dictSystem, text, 0.3); derr == nil {
 			raw = openrouterGptossStripFences(raw)
 			if gjson.Valid(raw) {
 				parsed := gjson.Parse(raw)
