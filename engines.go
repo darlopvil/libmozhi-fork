@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"encoding/json"
 	"time"
@@ -18,8 +17,6 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var ddgVqd string
-
 // Per-engine HTTP clients. http.DefaultClient has no timeout, so a stalled
 // upstream used to hang the request (and the All/Some modes) forever. 15s
 // matches the timeout upstream already uses in postRequest (requests.go).
@@ -27,7 +24,6 @@ var (
 	deeplHTTP  = &http.Client{Timeout: 15 * time.Second}
 	geminiHTTP = &http.Client{Timeout: 15 * time.Second}
 	textraHTTP = &http.Client{Timeout: 15 * time.Second}
-	ddgHTTP    = &http.Client{Timeout: 15 * time.Second}
 )
 
 func translateGoogle(to string, from string, text string) (LangOut, error) {
@@ -582,85 +578,6 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
-
-// ddgVqdUpdate fetches the vqd token DuckDuckGo requires on every
-// translation call. Any failure is returned instead of panicking.
-func ddgVqdUpdate() error {
-	r, err := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
-	if err != nil {
-		return err
-	}
-
-	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-	r.Header.Set("User-Agent", UserAgent)
-
-	res, err := ddgHTTP.Do(r)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return errors.New("duckduckgo vqd error: " + res.Status)
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-	re := regexp.MustCompile(`vqd="([^"]*)"`)
-	match := re.FindStringSubmatch(string(body))
-	if len(match) < 2 {
-		return errors.New("duckduckgo vqd token not found")
-	}
-	ddgVqd = match[1]
-	return nil
-}
-
-func translateDuckDuckGo(to string, from string, query string) (LangOut, error) {
-	FromOrig := from
-	ToOrig := to
-	if to == "zh" {
-		to = "zh-Hans"
-	} else if from == "zh" {
-		from = "zh-Hans"
-	} else if from == "zh-TW" {
-		from = "zh-Hant"
-	} else if to == "zh-TW" {
-		to = "zh-Hant"
-	}
-	// Validate against the original user-facing IDs for now. Once DDG lang lists
-	// are fetched from upstream automatically, this should validate `from`/`to`
-	// directly instead of the pre-normalized aliases.
-	if err := validateLanguagePair(langListDuckDuckGo("sl"), langListDuckDuckGo("tl"), FromOrig, ToOrig); err != nil {
-		return LangOut{}, err
-	}
-	var url string
-	var langout LangOut
-	if err := ddgVqdUpdate(); err != nil {
-		return LangOut{}, err
-	}
-	if from == "auto" {
-		url = "https://duckduckgo.com/translation.js?vqd=" + ddgVqd + "&query=translate&to=" + to
-	} else {
-		url = "https://duckduckgo.com/translation.js?vqd=" + ddgVqd + "&query=translate&to=" + to + "&from=" + from
-	}
-	duckDuckGoOut, err := postRequest(url, []byte(query), "application/json")
-	if err != nil {
-		return LangOut{}, err
-	}
-	if !gjson.Valid(duckDuckGoOut) {
-		return LangOut{}, errors.New("instance has been rate limited")
-	}
-	gjsonArr := gjson.Get(duckDuckGoOut, "translated").Array()
-	langout.OutputText = gjsonArr[0].String()
-	langout.Engine = "duckduckgo"
-	langout.SourceLang = FromOrig
-	langout.TargetLang = ToOrig
-	if from == "auto" {
-		langout.AutoDetect = gjson.Get(duckDuckGoOut, "detected_language").String()
-	}
-	return langout, nil
-}
 
 func TranslateAll(to string, from string, query string) []LangOut {
 	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "gptoss", "gemma", "nemotron", "mistral"}
