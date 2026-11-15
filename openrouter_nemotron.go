@@ -44,7 +44,7 @@ func openrouterNemotronChat(key, model, systemPrompt, userText string, temperatu
 		}
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
-		res, err := http.DefaultClient.Do(req)
+		res, err := nemotronHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -156,3 +156,5 @@ func translateOpenrouterNemotron(to string, from string, text string) (LangOut, 
 	}
 	return langout, nil
 }
+// nemotronHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
+var nemotronHTTP = &http.Client{Timeout: 15 * time.Second}

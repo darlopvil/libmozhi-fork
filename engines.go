@@ -9,7 +9,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"encoding/json"
 	"time"
 
@@ -20,6 +19,16 @@ import (
 )
 
 var ddgVqd string
+
+// Per-engine HTTP clients. http.DefaultClient has no timeout, so a stalled
+// upstream used to hang the request (and the All/Some modes) forever. 15s
+// matches the timeout upstream already uses in postRequest (requests.go).
+var (
+	deeplHTTP  = &http.Client{Timeout: 15 * time.Second}
+	geminiHTTP = &http.Client{Timeout: 15 * time.Second}
+	textraHTTP = &http.Client{Timeout: 15 * time.Second}
+	ddgHTTP    = &http.Client{Timeout: 15 * time.Second}
+)
 
 func translateGoogle(to string, from string, text string) (LangOut, error) {
 	ToOrig := to
@@ -323,7 +332,7 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 		req.Header.Set("Authorization", "DeepL-Auth-Key "+key)
 		req.Header.Set("Content-Type", "application/json")
 
-		res, err := http.DefaultClient.Do(req)
+		res, err := deeplHTTP.Do(req)
 		if err != nil {
 			return LangOut{}, err
 		}
@@ -384,7 +393,7 @@ func geminiChat(baseURL, key, model, systemPrompt, userText string, temperature 
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
 
-		res, err := http.DefaultClient.Do(req)
+		res, err := geminiHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -556,7 +565,7 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 	tokenBody.Set("grant_type", "client_credentials")
 	tokenBody.Set("client_id", key)
 	tokenBody.Set("client_secret", secret)
-	tokenRes, err := http.PostForm(baseURL+"/oauth2/token.php", tokenBody)
+	tokenRes, err := textraHTTP.PostForm(baseURL+"/oauth2/token.php", tokenBody)
 	if err != nil {
 		return LangOut{}, err
 	}
@@ -582,7 +591,7 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 	transBody.Set("type", "json")
 	transBody.Set("text", text)
 
-	transRes, err := http.PostForm(baseURL+"/api/mt/"+apiParam+"/", transBody)
+	transRes, err := textraHTTP.PostForm(baseURL+"/api/mt/"+apiParam+"/", transBody)
 	if err != nil {
 		return LangOut{}, err
 	}
@@ -609,7 +618,7 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 		dictBody.Set("pid", pid)
 		dictBody.Set("lang_s", from)
 		dictBody.Set("text", text)
-		if dictRes, derr := http.PostForm(baseURL+"/api/lookup/", dictBody); derr == nil {
+		if dictRes, derr := textraHTTP.PostForm(baseURL+"/api/lookup/", dictBody); derr == nil {
 			dout, _ := io.ReadAll(dictRes.Body)
 			dictRes.Body.Close()
 			if gjson.ValidBytes(dout) && gjson.GetBytes(dout, "resultset.code").Int() == 0 {
@@ -631,21 +640,37 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 }
 
 
-func ddgVqdUpdate() {
-	r, _ := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
+// ddgVqdUpdate fetches the vqd token DuckDuckGo requires on every
+// translation call. Any failure is returned instead of panicking.
+func ddgVqdUpdate() error {
+	r, err := http.NewRequest("GET", "https://duckduckgo.com/?q=translate", nil)
+	if err != nil {
+		return err
+	}
 
 	UserAgent := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
 	r.Header.Set("User-Agent", UserAgent)
 
-	client := &http.Client{}
-	res, _ := client.Do(r)
-
+	res, err := ddgHTTP.Do(r)
+	if err != nil {
+		return err
+	}
 	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return errors.New("duckduckgo vqd error: " + res.Status)
+	}
 
-	body, _ := io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
 	re := regexp.MustCompile(`vqd="([^"]*)"`)
 	match := re.FindStringSubmatch(string(body))
+	if len(match) < 2 {
+		return errors.New("duckduckgo vqd token not found")
+	}
 	ddgVqd = match[1]
+	return nil
 }
 
 func translateDuckDuckGo(to string, from string, query string) (LangOut, error) {
@@ -668,7 +693,9 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 	}
 	var url string
 	var langout LangOut
-	ddgVqdUpdate()
+	if err := ddgVqdUpdate(); err != nil {
+		return LangOut{}, err
+	}
 	if from == "auto" {
 		url = "https://duckduckgo.com/translation.js?vqd=" + ddgVqd + "&query=translate&to=" + to
 	} else {
@@ -694,19 +721,7 @@ func translateDuckDuckGo(to string, from string, query string) (LangOut, error) 
 
 func TranslateAll(to string, from string, query string) []LangOut {
 	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "gptoss", "gemma", "nemotron", "mistral"}
-	langout := []LangOut{}
-	var wg sync.WaitGroup
-	for i := 0; i < len(engines); i++ {
-		wg.Add(1)
-		go func(i int) {
-			data, err := Translate(engines[i], to, from, query)
-			if err == nil {
-				langout = append(langout, data)
-			}
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
+	langout := runEngines(engines, to, from, query)
 	return langout
 }
 
@@ -723,18 +738,6 @@ func TranslateSome(engines []string, to string, from string, query string) ([]La
 			return []LangOut{}, errors.New("Engine " + engines[i] + "not supported or implemented")
 		}
 	}
-	langout := []LangOut{}
-	var wg sync.WaitGroup
-	for i := 0; i < len(engines); i++ {
-		wg.Add(1)
-		go func(i int) {
-			data, err := Translate(engines[i], to, from, query)
-			if err == nil {
-				langout = append(langout, data)
-			}
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
+	langout := runEngines(engines, to, from, query)
 	return langout, nil
 }

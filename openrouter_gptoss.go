@@ -44,7 +44,7 @@ func openrouterGptossChat(key, model, systemPrompt, userText string, temperature
 		}
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
-		res, err := http.DefaultClient.Do(req)
+		res, err := gptossHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -156,3 +156,5 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	}
 	return langout, nil
 }
+// gptossHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
+var gptossHTTP = &http.Client{Timeout: 15 * time.Second}

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/carlmjohnson/requests"
 	"github.com/google/go-querystring/query"
@@ -35,7 +36,7 @@ func ttsGoogle(lang string, text string) ([]byte, error) {
 		URL(url).
 		ToString(&file).
 		UserAgent(UserAgent).
-		Fetch(context.Background())
+		Client(ttsHTTP).Fetch(context.Background())
 	if err != nil {
 		return []byte(""), err
 	}
@@ -151,7 +152,7 @@ func ttsReverso(lang string, text string) ([]byte, error) {
 		URL(url).
 		ToString(&file).
 		UserAgent(UserAgent).
-		Fetch(context.Background())
+		Client(ttsHTTP).Fetch(context.Background())
 	if err != nil {
 		return []byte(""), err
 	}
@@ -188,7 +189,7 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 	tokenBody.Set("grant_type", "client_credentials")
 	tokenBody.Set("client_id", key)
 	tokenBody.Set("client_secret", secret)
-	tokenRes, err := http.PostForm(baseURL+"/oauth2/token.php", tokenBody)
+	tokenRes, err := ttsHTTP.PostForm(baseURL+"/oauth2/token.php", tokenBody)
 	if err != nil {
 		return []byte(""), err
 	}
@@ -206,7 +207,7 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 	body.Set("name", name)
 	body.Set("locale", locale)
 	body.Set("text", text)
-	res, err := http.PostForm(baseURL+"/api/tts/", body)
+	res, err := ttsHTTP.PostForm(baseURL+"/api/tts/", body)
 	if err != nil {
 		return []byte(""), err
 	}
@@ -221,3 +222,5 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 	}
 	return data, nil
 }
+// ttsHTTP: own HTTP client with a timeout for every TTS engine in this file.
+var ttsHTTP = &http.Client{Timeout: 15 * time.Second}

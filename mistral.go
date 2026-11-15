@@ -41,7 +41,7 @@ func mistralChat(baseURL, key, model, systemPrompt, userText string, temperature
 		}
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
-		res, err := http.DefaultClient.Do(req)
+		res, err := mistralHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -157,3 +157,5 @@ func translateMistral(to string, from string, text string) (LangOut, error) {
 	}
 	return langout, nil
 }
+// mistralHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
+var mistralHTTP = &http.Client{Timeout: 15 * time.Second}

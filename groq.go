@@ -44,7 +44,7 @@ func groqChat(baseURL, key, model, systemPrompt, userText string, temperature fl
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
 
-		res, err := http.DefaultClient.Do(req)
+		res, err := groqHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -208,7 +208,7 @@ func ttsGroq(lang string, text string) ([]byte, error) {
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := groqHTTP.Do(req)
 	if err != nil {
 		return []byte(""), err
 	}
@@ -222,3 +222,5 @@ func ttsGroq(lang string, text string) ([]byte, error) {
 	}
 	return data, nil
 }
+// groqHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
+var groqHTTP = &http.Client{Timeout: 15 * time.Second}

@@ -44,7 +44,7 @@ func openrouterGemmaChat(key, model, systemPrompt, userText string, temperature 
 		}
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
-		res, err := http.DefaultClient.Do(req)
+		res, err := gemmaHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -156,3 +156,5 @@ func translateOpenrouterGemma(to string, from string, text string) (LangOut, err
 	}
 	return langout, nil
 }
+// gemmaHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
+var gemmaHTTP = &http.Client{Timeout: 15 * time.Second}
