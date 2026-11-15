@@ -363,61 +363,6 @@ func translateDeepl(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
-// geminiChat hace una llamada de chat al endpoint OpenAI-compatible de Gemini
-// y devuelve el content del primer choice. Reintenta ante 503/429 (picos del
-// tier gratis) hasta 3 veces con espera creciente.
-func geminiChat(baseURL, key, model, systemPrompt, userText string, temperature float64) (string, error) {
-	payloadMap := map[string]interface{}{
-		"model": model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": userText},
-		},
-		"temperature": temperature,
-	}
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return "", err
-	}
-
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			time.Sleep(time.Duration(attempt) * time.Second) // 1s, luego 2s
-		}
-
-		req, err := http.NewRequest("POST", baseURL+"/chat/completions", strings.NewReader(string(payload)))
-		if err != nil {
-			return "", err
-		}
-		req.Header.Set("Authorization", "Bearer "+key)
-		req.Header.Set("Content-Type", "application/json")
-
-		res, err := geminiHTTP.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		out, readErr := io.ReadAll(res.Body)
-		res.Body.Close()
-		if readErr != nil {
-			lastErr = readErr
-			continue
-		}
-
-		// 503/429: saturación temporal → reintentar.
-		if res.StatusCode == 503 || res.StatusCode == 429 {
-			lastErr = errors.New("gemini api error: " + res.Status)
-			continue
-		}
-		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
-			return "", errors.New("gemini api error: " + res.Status)
-		}
-		return gjson.GetBytes(out, "choices.0.message.content").String(), nil
-	}
-	return "", lastErr
-}
-
 // stripJSONFences quita ```json ... ``` si el modelo envolvió la respuesta.
 func stripJSONFences(s string) string {
 	s = strings.TrimSpace(s)
@@ -445,12 +390,10 @@ func translateGemini(to string, from string, text string) (LangOut, error) {
 	}
 	baseURL := os.Getenv("MOZHI_GEMINI_BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+		baseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
+	// Comma-separated preference list (see geminiPickModel in gemini.go).
 	model := os.Getenv("MOZHI_GEMINI_MODEL")
-	if model == "" {
-		model = "gemini-flash-latest"
-	}
 
 	// Nombre legible de los idiomas para los prompts.
 	targetName := to
