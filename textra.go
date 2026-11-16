@@ -49,7 +49,11 @@ var textraTokenState struct {
 
 // textraAcquire reserves one request slot, leaving at least keep slots free
 // for higher-priority calls.
-func textraAcquire(keep int) error {
+func textraAcquire(keep int) error { return textraTake(1, keep) }
+
+// textraTake reserves n request slots at once (all or nothing), leaving at
+// least keep slots free for higher-priority calls.
+func textraTake(n, keep int) error {
 	s := &textraSlotState
 	s.Lock()
 	defer s.Unlock()
@@ -61,14 +65,16 @@ func textraAcquire(keep int) error {
 		}
 	}
 	s.used = recent
-	if len(s.used)+1+keep > textraSlots {
+	if len(s.used)+n+keep > textraSlots {
 		wait := textraWindow
 		if len(s.used) > 0 {
 			wait = textraWindow - now.Sub(s.used[0])
 		}
 		return textraLimitError{wait}
 	}
-	s.used = append(s.used, now)
+	for i := 0; i < n; i++ {
+		s.used = append(s.used, now)
+	}
 	return nil
 }
 
@@ -228,16 +234,28 @@ func translateTexTra(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+// textraTTSLocales: the only 4 TexTra TTS voices.
+var textraTTSLocales = map[string]string{
+	"ja":    "ja-JP",
+	"en":    "en-US",
+	"zh":    "zh-CN",
+	"zh-CN": "zh-CN",
+	"ko":    "ko-KR",
+}
+
 func ttsTexTra(lang string, text string) ([]byte, error) {
-	// Only 4 TexTra TTS voices.
-	locales := map[string]string{
-		"ja":    "ja-JP",
-		"en":    "en-US",
-		"zh":    "zh-CN",
-		"zh-CN": "zh-CN",
-		"ko":    "ko-KR",
+	if _, ok := textraTTSLocales[lang]; !ok {
+		return []byte(""), errors.New("textra tts: unsupported language")
 	}
-	locale, ok := locales[lang]
+	if err := textraAcquire(0); err != nil {
+		return []byte(""), err
+	}
+	return ttsTexTraRaw(lang, text)
+}
+
+// ttsTexTraRaw synthesizes text; the caller has already reserved the slot.
+func ttsTexTraRaw(lang string, text string) ([]byte, error) {
+	locale, ok := textraTTSLocales[lang]
 	if !ok {
 		return []byte(""), errors.New("textra tts: unsupported language")
 	}
@@ -247,9 +265,6 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 	}
 	token, err := textraToken(baseURL, key, secret)
 	if err != nil {
-		return []byte(""), err
-	}
-	if err := textraAcquire(0); err != nil {
 		return []byte(""), err
 	}
 	// Raw WAV (RIFF) on success; errors come back as JSON with type=json.
