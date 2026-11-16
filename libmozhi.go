@@ -95,6 +95,10 @@ func LangList(engine string, listType string) ([]List, error) {
 
 // General function to translate stuff so there is no need for a huge if-block everywhere
 func Translate(engine string, to string, from string, text string) (LangOut, error) {
+	// Accept any spelling of a language this engine knows (es / es-ES,
+	// zh-CN / zh-Hans, nb / no): see langs_resolve.go.
+	from = resolveLangFor(engine, "sl", from)
+	to = resolveLangFor(engine, "tl", to)
 	var err error
 	var data LangOut
 	if engine == "google" {
