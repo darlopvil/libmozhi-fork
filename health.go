@@ -26,7 +26,7 @@ const healthProbeGap = textraWindow
 
 // healthKinds lists the engines recorded for each kind of request.
 var healthKinds = map[string][]string{
-	"translate": {"google", "deepl", "duckduckgo", "mymemory", "yandex", "gemini", "textra", "groq", "qwen", "cohere", "mistral"},
+	"translate": {"google", "deepl", "duckduckgo", "mymemory", "yandex", "gemini", "textra", "groq", "qwen", "cohere"},
 	"tts":       {"google", "textra", "groq"},
 }
 

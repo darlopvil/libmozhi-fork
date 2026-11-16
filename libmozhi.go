@@ -91,8 +91,6 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListQwen(listType)
 	} else if engine == "cohere" {
 		data = langListCohere(listType)
-	} else if engine == "mistral" {
-		data = langListMistral(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -147,8 +145,6 @@ func translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateQwen(to, from, text)
 	} else if engine == "cohere" {
 		data, err = translateCohere(to, from, text)
-	} else if engine == "mistral" {
-		data, err = translateMistral(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}
