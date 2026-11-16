@@ -78,6 +78,20 @@ func textraTake(n, keep int) error {
 	return nil
 }
 
+// textraFree returns how many request slots are free right now.
+func textraFree() int {
+	s := &textraSlotState
+	s.Lock()
+	defer s.Unlock()
+	used := 0
+	for _, t := range s.used {
+		if time.Since(t) < textraWindow {
+			used++
+		}
+	}
+	return textraSlots - used
+}
+
 // textraLimitHit records that TexTra refused a request for its limits anyway
 // (e.g. requests made outside Mozhi): every slot counts as used from now.
 func textraLimitHit() {

@@ -2,6 +2,14 @@ package libmozhi
 
 import (
 	"errors"
+	"log"
+	"runtime/debug"
+	"time"
+)
+
+var (
+	errTargetLang = errors.New("Target language code invalid")
+	errSourceLang = errors.New("Source language code invalid")
 )
 
 func hasLang(list []List, id string) bool {
@@ -16,10 +24,10 @@ func hasLang(list []List, id string) bool {
 
 func validateLanguagePair(sourceLangs []List, targetLangs []List, from string, to string) error {
 	if !hasLang(targetLangs, to) {
-		return errors.New("Target language code invalid")
+		return errTargetLang
 	}
 	if !hasLang(sourceLangs, from) {
-		return errors.New("Source language code invalid")
+		return errSourceLang
 	}
 
 	return nil
@@ -93,8 +101,24 @@ func LangList(engine string, listType string) ([]List, error) {
 	return data, nil
 }
 
+// Translate translates text with engine. A panic in the engine becomes an
+// ordinary error (Fiber's recover middleware only protects the request
+// goroutine, not the ones All mode starts), and every result is recorded
+// for the engine's health (health.go).
+func Translate(engine string, to string, from string, text string) (out LangOut, err error) {
+	start := time.Now()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("libmozhi: engine %q panicked: %v\n%s", engine, r, debug.Stack())
+			out, err = LangOut{}, errEnginePanic
+		}
+		recordHealth(engine, "translate", start, err)
+	}()
+	return translate(engine, to, from, text)
+}
+
 // General function to translate stuff so there is no need for a huge if-block everywhere
-func Translate(engine string, to string, from string, text string) (LangOut, error) {
+func translate(engine string, to string, from string, text string) (LangOut, error) {
 	// Accept any spelling of a language this engine knows (es / es-ES,
 	// zh-CN / zh-Hans, nb / no): see langs_resolve.go.
 	from = resolveLangFor(engine, "sl", from)
@@ -138,7 +162,27 @@ func Translate(engine string, to string, from string, text string) (LangOut, err
 	return data, nil
 }
 
+// TTS synthesizes text with engine; every result is recorded for the
+// engine's health (health.go).
 func TTS(engine string, lang string, text string) ([]byte, error) {
+	start := time.Now()
+	data, err := tts(engine, lang, text)
+	// TexTra allows about 3 requests per 2 minutes, shared with its
+	// translations: when no slot is free, Google reads the text instead.
+	var limit textraLimitError
+	if engine == "textra" && errors.As(err, &limit) {
+		gl := lang
+		if gl == "zh" {
+			gl = "zh-CN"
+		}
+		engine, start = "google", time.Now()
+		data, err = tts(engine, gl, text)
+	}
+	recordHealth(engine, "tts", start, err)
+	return data, err
+}
+
+func tts(engine string, lang string, text string) ([]byte, error) {
 	var err error
 	var data []byte
 	if engine == "google" {
@@ -147,16 +191,6 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsReverso(lang, text)
 	} else if engine == "textra" {
 		data, err = ttsTexTra(lang, text)
-		// TexTra allows about 3 requests per 2 minutes, shared with its
-		// translations: when no slot is free, Google reads the text instead.
-		var limit textraLimitError
-		if errors.As(err, &limit) {
-			gl := lang
-			if gl == "zh" {
-				gl = "zh-CN"
-			}
-			data, err = ttsGoogle(gl, text)
-		}
 	} else if engine == "groq" {
 		data, err = ttsGroq(lang, text)
 	} else {

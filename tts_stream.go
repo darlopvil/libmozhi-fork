@@ -144,7 +144,10 @@ func TTSStream(engine, lang, text string) (contentType string, write func(w io.W
 	}
 	synth := func(chunk string) ([]byte, error) {
 		if engine == "textra" {
-			return ttsTexTraRaw(lang, chunk) // slots already reserved
+			start := time.Now()
+			audio, err := ttsTexTraRaw(lang, chunk) // slots already reserved
+			recordHealth(engine, "tts", start, err)
+			return audio, err
 		}
 		return TTS(engine, lang, chunk)
 	}

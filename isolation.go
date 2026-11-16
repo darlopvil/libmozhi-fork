@@ -2,15 +2,14 @@ package libmozhi
 
 import (
 	"errors"
-	"log"
-	"runtime/debug"
 	"time"
 )
 
 // ============================================================================
 // ENGINE ISOLATION — used by TranslateAll and TranslateSome.
 // Every engine runs in its own goroutine. A panic or a hang in one engine must
-// never take the process down or hold the other engines' results hostage.
+// never take the process down or hold the other engines' results hostage
+// (Translate turns panics into errors).
 // ============================================================================
 
 // engineDeadline caps how long the multi-engine modes wait for any engine.
@@ -19,20 +18,8 @@ import (
 // page is always answered before the reverse proxy gives up on it.
 const engineDeadline = 50 * time.Second
 
+// errEnginePanic is what Translate returns when an engine panicked.
 var errEnginePanic = errors.New("engine panicked")
-
-// safeTranslate calls Translate and turns a panic into an ordinary error.
-// Fiber's recover middleware only protects the request goroutine; a panic in
-// one of the goroutines started below would otherwise kill the whole process.
-func safeTranslate(engine, to, from, query string) (out LangOut, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("libmozhi: engine %q panicked: %v\n%s", engine, r, debug.Stack())
-			err = errEnginePanic
-		}
-	}()
-	return Translate(engine, to, from, query)
-}
 
 type engineResult struct {
 	index int
@@ -48,7 +35,7 @@ func runEngines(engines []string, to, from, query string) []LangOut {
 	results := make(chan engineResult, len(engines))
 	for i := range engines {
 		go func(i int) {
-			out, err := safeTranslate(engines[i], to, from, query)
+			out, err := Translate(engines[i], to, from, query)
 			results <- engineResult{index: i, out: out, err: err}
 		}(i)
 	}
