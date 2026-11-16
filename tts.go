@@ -207,6 +207,7 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 	body.Set("name", name)
 	body.Set("locale", locale)
 	body.Set("text", text)
+	body.Set("type", "json") // errors come back as JSON instead of XML
 	res, err := ttsHTTP.PostForm(baseURL+"/api/tts/", body)
 	if err != nil {
 		return []byte(""), err
@@ -217,8 +218,17 @@ func ttsTexTra(lang string, text string) ([]byte, error) {
 		return []byte(""), err
 	}
 	// Si TexTra devolvió un error JSON en vez de audio, no es un wav.
+	// TexTra answers HTTP 200 with resultset.code; 502/504/505 are its request
+	// limits, shared by all its APIs (measured: 3 requests per ~2 minutes).
 	if len(data) < 4 || string(data[0:4]) != "RIFF" {
-		return []byte(""), errors.New("textra tts: no audio returned")
+		switch code := gjson.GetBytes(data, "resultset.code").String(); code {
+		case "502", "504", "505":
+			return []byte(""), errors.New("textra tts: request limit reached (TexTra allows about 3 requests per 2 minutes across all its APIs), try again later")
+		case "", "0":
+			return []byte(""), errors.New("textra tts: no audio returned")
+		default:
+			return []byte(""), errors.New("textra tts error " + code + ": " + gjson.GetBytes(data, "resultset.message").String())
+		}
 	}
 	return data, nil
 }
