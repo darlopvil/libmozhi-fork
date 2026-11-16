@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"encoding/json"
 	"time"
@@ -197,9 +198,23 @@ func translateMyMemory(to string, from string, text string) (LangOut, error) {
 	if !gjson.Valid(myMemoryOut) {
 		return LangOut{}, errors.New("instance has been rate limited")
 	}
-	gjsonArr := gjson.Get(myMemoryOut, "responseData.translatedText").Array()
+	// MyMemory answers errors and its daily quota warning inside a normal JSON
+	// body ("MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS..."),
+	// which used to be shown as the translation.
+	translated := gjson.Get(myMemoryOut, "responseData.translatedText").String()
+	if status := gjson.Get(myMemoryOut, "responseStatus").Int(); status != 200 ||
+		gjson.Get(myMemoryOut, "quotaFinished").Bool() || strings.HasPrefix(translated, "MYMEMORY WARNING") {
+		detail := gjson.Get(myMemoryOut, "responseDetails").String()
+		if detail == "" {
+			detail = translated
+		}
+		return LangOut{}, errors.New("mymemory error " + strconv.FormatInt(status, 10) + ": " + detail)
+	}
+	if translated == "" {
+		return LangOut{}, errors.New("mymemory: no translation in response")
+	}
 	var langout LangOut
-	langout.OutputText = gjsonArr[0].String()
+	langout.OutputText = translated
 	langout.Engine = "mymemory"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
@@ -249,7 +264,14 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	if !gjson.Valid(yandexOut) {
 		return LangOut{}, errors.New("instance has been rate limited")
 	}
+	// Errors come back as {"code":4xx,"message":"..."} instead of a translation.
+	if code := gjson.Get(yandexOut, "code").Int(); code != 0 && code != 200 {
+		return LangOut{}, errors.New("yandex error " + strconv.FormatInt(code, 10) + ": " + gjson.Get(yandexOut, "message").String())
+	}
 	gjsonArr := gjson.Get(yandexOut, "text.0").Array()
+	if len(gjsonArr) == 0 {
+		return LangOut{}, errors.New("yandex: no translation in response")
+	}
 
 	var langout LangOut
 
@@ -257,7 +279,7 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 		langout.AutoDetect = strings.TrimSuffix(gjson.Get(yandexOut, "lang").String(), "-"+to)
 	}
 
-	yandexDictOut, err := getRequest("https://dictionary.yandex.net/dicservice.json/queryCorpus?srv=tr-text&ui=en&src=" + text + "&lang=" + from + "-" + to)
+	yandexDictOut, err := getRequest("https://dictionary.yandex.net/dicservice.json/queryCorpus?srv=tr-text&ui=en&src=" + url.QueryEscape(text) + "&lang=" + from + "-" + to)
 	if err == nil {
 		for _, example := range gjson.Get(yandexDictOut, "result").Array() {
 			var WordChoices WordChoices // WordChoices is the struct as well as var name
