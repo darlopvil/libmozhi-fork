@@ -153,5 +153,6 @@ func ttsReverso(lang string, text string) ([]byte, error) {
 	}
 	return []byte(file), nil
 }
+
 // ttsHTTP: own HTTP client with a timeout for every TTS engine in this file.
 var ttsHTTP = &http.Client{Timeout: 15 * time.Second}

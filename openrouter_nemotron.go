@@ -173,5 +173,6 @@ func translateOpenrouterNemotron(to string, from string, text string) (LangOut, 
 	}
 	return langout, nil
 }
+
 // nemotronHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
 var nemotronHTTP = &http.Client{Timeout: 15 * time.Second}

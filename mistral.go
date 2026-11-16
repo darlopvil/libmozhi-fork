@@ -157,5 +157,6 @@ func translateMistral(to string, from string, text string) (LangOut, error) {
 	}
 	return langout, nil
 }
+
 // mistralHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
 var mistralHTTP = &http.Client{Timeout: 15 * time.Second}

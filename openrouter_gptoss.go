@@ -173,5 +173,6 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	}
 	return langout, nil
 }
+
 // gptossHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
 var gptossHTTP = &http.Client{Timeout: 15 * time.Second}

@@ -226,7 +226,7 @@ func LangListMyMemory(listType string) []List {
 		codeSmall := strings.Split(code, "-")[0]
 		// If previous or next value is also the same language, then dont remove the trailing characters
 		if i > 0 && i < len(gjsonArr)-1 {
-			if (strings.Split(gjsonArr[i+1].Get("code").String(), "-")[0] == codeSmall || strings.Split(gjsonArr[i-1].Get("code").String(), "-")[0] == codeSmall) {
+			if strings.Split(gjsonArr[i+1].Get("code").String(), "-")[0] == codeSmall || strings.Split(gjsonArr[i-1].Get("code").String(), "-")[0] == codeSmall {
 				codeSmall = code
 			}
 		}
