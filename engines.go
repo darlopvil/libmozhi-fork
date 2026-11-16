@@ -501,13 +501,13 @@ func textraDictPID(from, to string) string {
 }
 
 func TranslateAll(to string, from string, query string) []LangOut {
-	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "qwen", "cohere", "microsoft"}
+	engines := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "qwen", "cohere", "microsoft", "langbly", "papago", "modernmt", "volcengine"}
 	langout := runEngines(engines, to, from, query)
 	return langout
 }
 
 func TranslateSome(engines []string, to string, from string, query string) ([]LangOut, error) {
-	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "qwen", "cohere", "microsoft"}
+	enginesFull := []string{"google", "mymemory", "yandex", "deepl", "duckduckgo", "gemini", "textra", "groq", "qwen", "cohere", "microsoft", "langbly", "papago", "modernmt", "volcengine"}
 	for i := range engines {
 		valid := false
 		for j := range enginesFull {

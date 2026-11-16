@@ -93,6 +93,14 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListCohere(listType)
 	} else if engine == "microsoft" {
 		data = langListMicrosoft(listType)
+	} else if engine == "langbly" {
+		data = langListLangbly(listType)
+	} else if engine == "papago" {
+		data = langListPapago(listType)
+	} else if engine == "modernmt" {
+		data = langListModernMT(listType)
+	} else if engine == "volcengine" {
+		data = langListVolcengine(listType)
 	} else {
 		return []List{}, errors.New("Engine does not exist or has been disabled.")
 	}
@@ -149,6 +157,14 @@ func translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateCohere(to, from, text)
 	} else if engine == "microsoft" {
 		data, err = translateMicrosoft(to, from, text)
+	} else if engine == "langbly" {
+		data, err = translateLangbly(to, from, text)
+	} else if engine == "papago" {
+		data, err = translatePapago(to, from, text)
+	} else if engine == "modernmt" {
+		data, err = translateModernMT(to, from, text)
+	} else if engine == "volcengine" {
+		data, err = translateVolcengine(to, from, text)
 	} else {
 		return LangOut{}, errors.New("Engine does not exist or has been disabled.")
 	}
