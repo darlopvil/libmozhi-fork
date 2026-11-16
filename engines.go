@@ -43,8 +43,11 @@ func translateGoogle(to string, from string, text string) (LangOut, error) {
 	text = strings.ReplaceAll(text, `"`, `\\\"`)
 	//text = strings.ReplaceAll(text, "\r", "")
 	// curl -XPOST 'https://translate.google.com/_/TranslateWebserverUi/data/batchexecute' -d 'f.req=[[["MkEWBc", "[[\"Hello World!\",\"auto\",\"fr\",1],[]]",null,"generic"]]]'
-	data := `[[["MkEWBc","[[\"` + text + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]&`
-	escapeData := url.PathEscape(data)
+	data := `[[["MkEWBc","[[\"` + text + `\",\"` + from + `\",\"` + to + `\",1],[]]",null,"generic"]]]`
+	// Form body: QueryEscape, not PathEscape, which left & and + as they were:
+	// the request was cut at the first & of the text (empty translation)
+	// and every + became a space.
+	escapeData := url.QueryEscape(data) + "&"
 	//escapeData = strings.ReplaceAll(escapeData, "+", )
 	q := `f.req=` + escapeData
 	googleOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(q), "application/x-www-form-urlencoded")
@@ -283,9 +286,9 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	langout.Engine = "yandex"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
-	translit, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + from + "&text=" + url.PathEscape(langout.OutputText))
+	translit, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + from + "&text=" + url.QueryEscape(langout.OutputText))
 	langout.SourceTransliteration = strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(translit, "\\n", "\n"), "\\r", ""), `"`), `"`)
-	translit2, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + to + "&text=" + url.PathEscape(text))
+	translit2, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + to + "&text=" + url.QueryEscape(text))
 	langout.TargetTransliteration = strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(translit2, "\\n", "\n"), "\\r", ""), `"`), `"`)
 	return langout, nil
 }

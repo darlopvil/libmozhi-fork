@@ -12,7 +12,7 @@ func dictDataGoogle(text string, translated string, from string, to string) Lang
 	var langout LangOut
 
 	dictData := `[[["rPsWke","[[\"` + text + `\",\"` + from + `\",\"` + to + `\"],1]",null,"generic"]]]`
-	escapedDictData := url.PathEscape(dictData)
+	escapedDictData := url.QueryEscape(dictData)
 	dictQuery := `f.req=` + escapedDictData
 	dictOut, err := postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(dictQuery), "application/x-www-form-urlencoded")
 	if err != nil {
@@ -44,7 +44,7 @@ func dictDataGoogle(text string, translated string, from string, to string) Lang
 	}
 
 	dictData = `[[["rPsWke","[[\"` + translated + `\",\"` + to + `\",\"` + from + `\"],1]",null,"generic"]]]`
-	escapedDictData = url.PathEscape(dictData)
+	escapedDictData = url.QueryEscape(dictData)
 	dictQuery = `f.req=` + escapedDictData
 	dictOut, err = postRequest("https://translate.google.com/_/TranslateWebserverUi/data/batchexecute", []byte(dictQuery), "application/x-www-form-urlencoded")
 	if err != nil {
