@@ -15,14 +15,26 @@ import (
 // Every translation and TTS request is recorded as it happens (Translate, TTS
 // and TTSStream). Nothing is sent to an engine just to check it while it
 // works: several have small quotas (TexTra about 3 requests per 2 minutes for
-// the whole account, Groq TTS 100 a day). Only an engine whose last request
-// failed is re-checked, at most once per healthProbeGap, so its state turns
-// back to ok as soon as it recovers.
+// the whole account, Groq TTS 100 a day, Cohere 1,000 calls a month). When
+// one engine's health is asked for (HealthCheck), it is re-checked with a
+// short request only if its last request failed, if it has had no request
+// since start, or if its last success is older than healthStaleAfter; and
+// at most once per healthProbeGap.
 // ============================================================================
 
 // healthProbeGap is one TexTra window: a re-check never takes more than one
 // of TexTra's 3 slots per window, however often the health is asked for.
 const healthProbeGap = textraWindow
+
+// healthStaleAfter: an engine nobody used for this long is re-checked, so a
+// silent breakage shows within half a day. It costs at most 2 requests a
+// day per engine and kind: for Cohere, the smallest quota, 60 of its 1,000
+// calls a month; for Groq TTS, 2 of its 100 a day.
+const healthStaleAfter = 12 * time.Hour
+
+// healthProbeText has more than 8 words, so the LLM engines skip their
+// dictionary lookup: a re-check costs one request.
+const healthProbeText = "The weather is nice today, so we are going for a walk."
 
 // healthKinds lists the engines recorded for each kind of request.
 var healthKinds = map[string][]string{
@@ -161,17 +173,28 @@ func EngineHealth(engine string) map[string]Health {
 }
 
 // HealthCheck returns the health of engine for kind, re-checking it first
-// with a short request when its last request failed and it wasn't re-checked
-// in the last healthProbeGap. ok is false for an unknown engine or kind.
+// with a short request when its state is failing, unknown or stale (see the
+// header) and it wasn't re-checked in the last healthProbeGap. ok is false
+// for an unknown engine or kind.
 func HealthCheck(engine, kind string) (h Health, ok bool) {
 	if !healthKnown(engine, kind) {
 		return Health{}, false
 	}
+	now := time.Now()
 	s := &healthState
 	s.Lock()
+	if s.m == nil {
+		s.m = map[string]*Health{}
+	}
+	p := s.m[engine+"/"+kind]
+	if p == nil {
+		p = &Health{Status: "unknown"}
+		s.m[engine+"/"+kind] = p
+	}
 	probe := false
-	if p := s.m[engine+"/"+kind]; p != nil && p.Status == "failing" && time.Since(p.lastProbe) >= healthProbeGap {
-		p.lastProbe = time.Now()
+	if now.Sub(p.lastProbe) >= healthProbeGap &&
+		(p.Status != "ok" || p.LastOK == nil || now.Sub(*p.LastOK) > healthStaleAfter) {
+		p.lastProbe = now
 		probe = true
 	}
 	s.Unlock()
@@ -180,7 +203,7 @@ func HealthCheck(engine, kind string) (h Health, ok bool) {
 		if kind == "tts" {
 			_, _ = TTS(engine, "en", "Good morning")
 		} else {
-			_, _ = Translate(engine, "es", "en", "Good morning")
+			_, _ = Translate(engine, "es", "en", healthProbeText)
 		}
 	}
 	return HealthOf(engine, kind), true
