@@ -143,6 +143,16 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsReverso(lang, text)
 	} else if engine == "textra" {
 		data, err = ttsTexTra(lang, text)
+		// TexTra allows about 3 requests per 2 minutes, shared with its
+		// translations: when no slot is free, Google reads the text instead.
+		var limit textraLimitError
+		if errors.As(err, &limit) {
+			gl := lang
+			if gl == "zh" {
+				gl = "zh-CN"
+			}
+			data, err = ttsGoogle(gl, text)
+		}
 	} else if engine == "groq" {
 		data, err = ttsGroq(lang, text)
 	} else {
