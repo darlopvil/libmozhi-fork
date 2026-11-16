@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,34 +14,38 @@ import (
 )
 
 // ============================================================================
-// OPENROUTER Gptoss — isla autónoma. Familia: baidu/ernie (modelos gratis descubiertos solos, ver openrouter_models.go)
+// QWEN ENGINE — Alibaba's Qwen through Groq. Groq rate-limits every model on
+// its own (qwen3.8-27b, nov 2026: 1,000 requests a day, 8,000 tokens a
+// minute), so this engine doesn't spend the Groq engine's quota. It uses the
+// same Groq key and Groq's model list helpers (groqPickModel, groqModelGone
+// in groq.go); the chat call is its own, because Qwen needs its reasoning
+// turned off.
 // ============================================================================
 
-func openrouterGptossChat(key, family, preferred, systemPrompt, userText string, temperature float64) (string, error) {
-	baseURL := os.Getenv("MOZHI_OPENROUTER_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://openrouter.ai/api/v1"
-	}
+const qwenDefaultModels = "qwen/qwen3.8-27b"
+
+// qwenThink strips a reasoning block, in case a model sends one anyway.
+var qwenThink = regexp.MustCompile(`(?s)^\s*<think>.*?</think>`)
+
+func qwenChat(baseURL, key, prefs, systemPrompt, userText string) (string, error) {
 	var lastErr error
 	refreshed := false
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
-		// Current free models of this island's family, sent as OpenRouter's
-		// `models` fallback list: if the first one is saturated, the next
-		// one answers.
-		models, err := openrouterFreeModels(family, preferred)
+		model, err := groqPickModel(baseURL, key, prefs)
 		if err != nil {
 			return "", err
 		}
 		payload, err := json.Marshal(map[string]interface{}{
-			"models": models,
+			"model": model,
 			"messages": []map[string]string{
 				{"role": "system", "content": systemPrompt},
 				{"role": "user", "content": userText},
 			},
-			"temperature": temperature,
+			"temperature":      0.3,
+			"reasoning_effort": "none", // measured: 0.4-1.3s per translation
 		})
 		if err != nil {
 			return "", err
@@ -51,7 +56,7 @@ func openrouterGptossChat(key, family, preferred, systemPrompt, userText string,
 		}
 		req.Header.Set("Authorization", "Bearer "+key)
 		req.Header.Set("Content-Type", "application/json")
-		res, err := gptossHTTP.Do(req)
+		res, err := groqHTTP.Do(req)
 		if err != nil {
 			lastErr = err
 			continue
@@ -63,57 +68,46 @@ func openrouterGptossChat(key, family, preferred, systemPrompt, userText string,
 			continue
 		}
 		if res.StatusCode == 503 || res.StatusCode == 429 {
-			lastErr = errors.New("openrouter api error: " + res.Status + openrouterErrMsg(out))
+			lastErr = errors.New("qwen (groq) api error: " + res.Status)
 			continue
 		}
 		if res.StatusCode != 200 || !gjson.ValidBytes(out) {
-			apiErr := errors.New("openrouter api error: " + res.Status + openrouterErrMsg(out))
-			// Retired or region-blocked model: retry once with a fresh list.
-			if !refreshed && openrouterModelRejected(models, res.StatusCode, out) {
+			apiErr := errors.New("qwen (groq) api error: " + res.Status + ": " + gjson.GetBytes(out, "error.message").String())
+			// Decommissioned or unknown model: retry once with the next one.
+			if !refreshed && groqModelGone(model, res.StatusCode, out) {
 				refreshed = true
 				lastErr = apiErr
 				continue
 			}
 			return "", apiErr
 		}
-		return gjson.GetBytes(out, "choices.0.message.content").String(), nil
+		content := gjson.GetBytes(out, "choices.0.message.content").String()
+		return strings.TrimSpace(qwenThink.ReplaceAllString(content, "")), nil
 	}
 	return "", lastErr
 }
 
-func openrouterGptossStripFences(s string) string {
-	s = strings.TrimSpace(s)
-	s = strings.TrimPrefix(s, "```json")
-	s = strings.TrimPrefix(s, "```")
-	s = strings.TrimSuffix(s, "```")
-	return strings.TrimSpace(s)
-}
-
-func translateOpenrouterGptoss(to string, from string, text string) (LangOut, error) {
-	FromOrig := from
-	ToOrig := to
-	if err := validateLanguagePair(langListOpenrouterGptoss("sl"), langListOpenrouterGptoss("tl"), from, to); err != nil {
+func translateQwen(to string, from string, text string) (LangOut, error) {
+	if err := validateLanguagePair(langListQwen("sl"), langListQwen("tl"), from, to); err != nil {
 		return LangOut{}, err
 	}
-	var langout LangOut
-	langout.Engine = "gptoss"
-	langout.SourceLang = FromOrig
-	langout.TargetLang = ToOrig
-
-	key := os.Getenv("MOZHI_OPENROUTER_API_KEY")
+	key := os.Getenv("MOZHI_GROQ_API_KEY")
 	if key == "" {
-		return LangOut{}, errors.New("openrouter engine requires MOZHI_OPENROUTER_API_KEY")
+		return LangOut{}, errors.New("qwen engine requires MOZHI_GROQ_API_KEY")
 	}
-	// Family of free models this island uses; the current ones are discovered
-	// automatically. _MODEL is optional: a preferred id, used while it exists.
-	family := os.Getenv("MOZHI_OPENROUTER_GPTOSS_FAMILY")
-	if family == "" {
-		family = "baidu/ernie"
+	baseURL := os.Getenv("MOZHI_GROQ_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://api.groq.com/openai/v1"
 	}
-	model := os.Getenv("MOZHI_OPENROUTER_GPTOSS_MODEL")
+	// Comma-separated preference list; the first model Groq lists as active
+	// is used.
+	models := os.Getenv("MOZHI_QWEN_MODEL")
+	if strings.TrimSpace(models) == "" {
+		models = qwenDefaultModels
+	}
 
 	targetName := to
-	for _, l := range langListOpenrouterGptoss("tl") {
+	for _, l := range langListQwen("tl") {
 		if l.Id == to {
 			targetName = l.Name
 			break
@@ -121,7 +115,7 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	}
 	srcName := "the source language"
 	if from != "auto" {
-		for _, l := range langListOpenrouterGptoss("sl") {
+		for _, l := range langListQwen("sl") {
 			if l.Id == from {
 				srcName = l.Name
 				break
@@ -129,17 +123,27 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 		}
 	}
 
+	// 1) Translation.
 	transSystem := "You are a professional translator. Translate the user's text from " + srcName + " into " + targetName + ". Produce a faithful and natural translation: preserve the original meaning, tone and register, do not add, omit or explain anything. Output ONLY the translated text, with no quotes, no notes and no preamble."
-	translated, err := openrouterGptossChat(key, family, model, transSystem, text, 0.3)
+	translated, err := qwenChat(baseURL, key, models, transSystem, text)
 	if err != nil {
 		return LangOut{}, err
 	}
-	langout.OutputText = strings.TrimSpace(translated)
+	if translated == "" {
+		return LangOut{}, errors.New("qwen: empty answer")
+	}
 
+	var langout LangOut
+	langout.Engine = "qwen"
+	langout.SourceLang = from
+	langout.TargetLang = to
+	langout.OutputText = translated
+
+	// 2) Dictionary / paraphrases (short text).
 	if len(strings.Fields(text)) <= 8 {
 		dictSystem := "You are a bilingual lexical assistant. Translating from " + srcName + " into " + targetName + ". Analyze the user text and return ONLY a JSON object (no markdown, no preamble) with this exact shape: {\"senses\":[{\"word\":\"<alt translation / sense / paraphrase>\",\"examples\":[{\"src\":\"<example in source lang>\",\"dst\":\"<its target translation>\"}]}],\"synonyms\":[\"<synonyms of the main translation, in target lang>\"],\"antonyms\":[\"<antonyms in target lang>\"]}. Rules: if the text is a single WORD or very short phrase, give its different SENSES (up to 5) with example sentences each, plus synonyms and antonyms. If it is a full SENTENCE, give up to 4 natural PARAPHRASES as senses (word = the paraphrase), with the paraphrase as src and its translation as dst; synonyms/antonyms may be empty. Always output valid JSON only."
-		if raw, derr := openrouterGptossChat(key, family, model, dictSystem, text, 0.3); derr == nil {
-			raw = openrouterGptossStripFences(raw)
+		if raw, derr := qwenChat(baseURL, key, models, dictSystem, text); derr == nil {
+			raw = groqStripJSONFences(raw)
 			if gjson.Valid(raw) {
 				parsed := gjson.Parse(raw)
 				for _, sense := range parsed.Get("senses").Array() {
@@ -173,6 +177,3 @@ func translateOpenrouterGptoss(to string, from string, text string) (LangOut, er
 	}
 	return langout, nil
 }
-
-// gptossHTTP: own HTTP client with a timeout (http.DefaultClient never gives up).
-var gptossHTTP = &http.Client{Timeout: 15 * time.Second}
