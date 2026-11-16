@@ -13,7 +13,7 @@ import "strings"
 // langRegionPrefs: preferred variant when an engine only has regional codes
 // for a language. Otherwise "<lang>-<LANG>" (es-ES, fr-FR...) is preferred.
 var langRegionPrefs = map[string][]string{
-	"en": {"en-gb", "en-us"},
+	"en": {"en-us", "en-gb"},
 	"zh": {"zh-cn", "zh-tw"},
 	"sr": {"sr-latn"},
 }
