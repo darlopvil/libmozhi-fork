@@ -189,6 +189,8 @@ func tts(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsTexTra(lang, text)
 	} else if engine == "groq" {
 		data, err = ttsGroq(lang, text)
+	} else if engine == "microsoft" {
+		data, err = ttsMicrosoft(lang, text)
 	} else {
 		return []byte(""), errors.New("Engine does not exist and/or doesn't support TTS and/or has been disabled.")
 	}

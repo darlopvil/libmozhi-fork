@@ -26,6 +26,9 @@ var ttsChunkLimit = map[string]int{
 	"google": 200,
 	"textra": 120, // ~0.04-0.07s per Japanese character: 200 took 14.5s, too close to the 15s timeout
 	"groq":   600,
+	// Azure Speech F0 allows 20 requests a minute: the longest text Mozhi
+	// accepts (5000 characters by default) takes 5.
+	"microsoft": 1000,
 }
 
 // ttsRetryWaits paces retries of a failed chunk after the first one, while
