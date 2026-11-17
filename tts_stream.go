@@ -124,6 +124,20 @@ func parseWAV(b []byte) (fmtChunk, pcm []byte, err error) {
 	return nil, nil, errors.New("tts: WAV without data")
 }
 
+// wavFile builds a RIFF/WAVE file from a fmt chunk and PCM samples, with
+// the given RIFF and data sizes (0xFFFFFFFF: unknown, for streaming).
+func wavFile(fmtChunk, pcm []byte, riffSize, dataSize uint32) []byte {
+	var h bytes.Buffer
+	h.WriteString("RIFF")
+	_ = binary.Write(&h, binary.LittleEndian, riffSize)
+	h.WriteString("WAVE")
+	h.Write(fmtChunk)
+	h.WriteString("data")
+	_ = binary.Write(&h, binary.LittleEndian, dataSize)
+	h.Write(pcm)
+	return h.Bytes()
+}
+
 // TTSStream synthesizes text with engine, chunk by chunk. The first chunk is
 // synthesized before it returns, so a failure there is an ordinary error and
 // the audio type is known; write then sends that chunk and every following
@@ -175,15 +189,14 @@ func TTSStream(engine, lang, text string) (contentType string, write func(w io.W
 				if perr != nil {
 					return perr
 				}
-				if index == 0 {
+				if len(chunks) == 1 {
+					// One chunk: its real sizes, so players show the real
+					// duration (Groq itself sends 0xFFFFFFFF).
+					out = wavFile(f, pcm, uint32(4+len(f)+8+len(pcm)), uint32(len(pcm)))
+				} else if index == 0 {
 					// Streamed WAV header: unknown total size (0xFFFFFFFF).
 					wavFmt = f
-					var h bytes.Buffer
-					h.WriteString("RIFF\xff\xff\xff\xffWAVE")
-					h.Write(f)
-					h.WriteString("data\xff\xff\xff\xff")
-					h.Write(pcm)
-					out = h.Bytes()
+					out = wavFile(f, pcm, 0xFFFFFFFF, 0xFFFFFFFF)
 				} else if !bytes.Equal(f, wavFmt) {
 					return errors.New("tts: audio format changed between chunks")
 				} else {

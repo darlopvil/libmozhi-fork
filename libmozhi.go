@@ -194,6 +194,23 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 	return data, err
 }
 
+// TTSSupports reports whether engine has a voice for lang: TexTra only
+// speaks Japanese, English, Chinese and Korean, and Groq English and
+// Arabic; Google and Microsoft speak most languages.
+func TTSSupports(engine, lang string) bool {
+	switch engine {
+	case "textra":
+		_, ok := textraTTSLocales[lang]
+		return ok
+	case "groq":
+		_, ok := groqTTSModels[lang]
+		return ok
+	case "google", "microsoft":
+		return true
+	}
+	return false
+}
+
 func tts(engine string, lang string, text string) ([]byte, error) {
 	var err error
 	var data []byte

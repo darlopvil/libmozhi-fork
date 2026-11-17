@@ -176,13 +176,15 @@ func translateGroq(to string, from string, text string) (LangOut, error) {
 	return langout, nil
 }
 
+// groqTTSModels: Groq TTS (Orpheus) only speaks English and Arabic.
+var groqTTSModels = map[string]string{
+	"en": "canopylabs/orpheus-v1-english",
+	"ar": "canopylabs/orpheus-arabic-saudi",
+}
+
 // ttsGroq: síntesis de voz. Groq TTS (Orpheus) sólo soporta inglés y árabe.
 func ttsGroq(lang string, text string) ([]byte, error) {
-	models := map[string]string{
-		"en": "canopylabs/orpheus-v1-english",
-		"ar": "canopylabs/orpheus-arabic-saudi",
-	}
-	model, ok := models[lang]
+	model, ok := groqTTSModels[lang]
 	if !ok {
 		return []byte(""), errors.New("groq tts: unsupported language")
 	}
