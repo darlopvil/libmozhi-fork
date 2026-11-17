@@ -308,10 +308,12 @@ func translateYandex(to string, from string, text string) (LangOut, error) {
 	langout.Engine = "yandex"
 	langout.SourceLang = FromOrig
 	langout.TargetLang = ToOrig
-	translit, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + from + "&text=" + url.QueryEscape(langout.OutputText))
-	langout.SourceTransliteration = strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(translit, "\\n", "\n"), "\\r", ""), `"`), `"`)
-	translit2, _ := getRequest("https://translate.yandex.net/translit/translit?lang=" + to + "&text=" + url.QueryEscape(text))
-	langout.TargetTransliteration = strings.TrimSuffix(strings.TrimPrefix(strings.ReplaceAll(strings.ReplaceAll(translit2, "\\n", "\n"), "\\r", ""), `"`), `"`)
+	srcLang := from
+	if from == "auto" {
+		srcLang = langout.AutoDetect
+	}
+	langout.SourceTransliteration = yandexTranslit(srcLang, text)
+	langout.TargetTransliteration = yandexTranslit(to, langout.OutputText)
 	return langout, nil
 }
 
