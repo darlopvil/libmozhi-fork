@@ -4,15 +4,16 @@ go 1.24.2
 
 require (
 	github.com/OwO-Network/DeepLX v1.0.7
+	github.com/PuerkitoBio/goquery v1.10.2
 	github.com/carlmjohnson/requests v0.24.3
 	github.com/gocolly/colly v1.2.0
 	github.com/google/go-querystring v1.1.0
 	github.com/google/uuid v1.6.0
 	github.com/tidwall/gjson v1.18.0
+	golang.org/x/net v0.39.0
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.2 // indirect
 	github.com/abadojack/whatlanggo v1.0.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
@@ -43,7 +44,6 @@ require (
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect

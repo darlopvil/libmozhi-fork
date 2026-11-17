@@ -40,6 +40,7 @@ const healthProbeText = "The weather is nice today, so we are going for a walk."
 var healthKinds = map[string][]string{
 	"translate": {"google", "deepl", "duckduckgo", "mymemory", "yandex", "gemini", "textra", "groq", "qwen", "cohere", "microsoft", "langbly", "papago", "modernmt", "volcengine"},
 	"tts":       {"google", "textra", "groq", "microsoft"},
+	"dict":      {"jisho", "jpdb", "moji", "weblio"},
 }
 
 // Health is the state of one engine for one kind of request, since start.
@@ -71,10 +72,10 @@ func healthKnown(engine, kind string) bool {
 }
 
 // HealthKinds returns the kinds of request recorded for engine
-// ("translate", "tts"), or none for an unknown engine.
+// ("translate", "tts", "dict"), or none for an unknown engine.
 func HealthKinds(engine string) []string {
 	kinds := []string{}
-	for _, kind := range []string{"translate", "tts"} {
+	for _, kind := range []string{"translate", "tts", "dict"} {
 		if healthKnown(engine, kind) {
 			kinds = append(kinds, kind)
 		}
@@ -200,9 +201,12 @@ func HealthCheck(engine, kind string) (h Health, ok bool) {
 	s.Unlock()
 	// TexTra: leave at least one slot to real requests.
 	if probe && (engine != "textra" || textraFree() >= 2) {
-		if kind == "tts" {
+		switch kind {
+		case "tts":
 			_, _ = TTS(engine, "en", "Good morning")
-		} else {
+		case "dict":
+			jaDictProbe(engine)
+		default:
 			_, _ = Translate(engine, "es", "en", healthProbeText)
 		}
 	}
