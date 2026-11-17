@@ -177,6 +177,11 @@ func translate(engine string, to string, from string, text string) (LangOut, err
 // TTS synthesizes text with engine; every result is recorded for the
 // engine's health (health.go).
 func TTS(engine string, lang string, text string) ([]byte, error) {
+	// Microsoft's voices: Azure Speech, with Edge's read-aloud service as
+	// its backup (each records its own health).
+	if engine == "microsoft" {
+		return ttsMicrosoftOrEdge(lang, text)
+	}
 	start := time.Now()
 	data, err := tts(engine, lang, text)
 	// TexTra allows about 3 requests per 2 minutes, shared with its
@@ -196,7 +201,7 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 
 // TTSSupports reports whether engine has a voice for lang: TexTra only
 // speaks Japanese, English, Chinese and Korean, and Groq English and
-// Arabic; Google and Microsoft speak most languages.
+// Arabic; Google and Microsoft (Azure Speech or Edge) speak most languages.
 func TTSSupports(engine, lang string) bool {
 	switch engine {
 	case "textra":
@@ -205,7 +210,7 @@ func TTSSupports(engine, lang string) bool {
 	case "groq":
 		_, ok := groqTTSModels[lang]
 		return ok
-	case "google", "microsoft":
+	case "google", "microsoft", "edge":
 		return true
 	}
 	return false
@@ -224,6 +229,8 @@ func tts(engine string, lang string, text string) ([]byte, error) {
 		data, err = ttsGroq(lang, text)
 	} else if engine == "microsoft" {
 		data, err = ttsMicrosoft(lang, text)
+	} else if engine == "edge" {
+		data, err = ttsEdge(lang, text)
 	} else {
 		return []byte(""), errors.New("Engine does not exist and/or doesn't support TTS and/or has been disabled.")
 	}

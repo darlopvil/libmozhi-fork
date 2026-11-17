@@ -29,6 +29,7 @@ var ttsChunkLimit = map[string]int{
 	// Azure Speech F0 allows 20 requests a minute: the longest text Mozhi
 	// accepts (5000 characters by default) takes 5.
 	"microsoft": 1000,
+	"edge":      1000, // the same voices, through Edge's read-aloud service
 }
 
 // ttsRetryWaits paces retries of a failed chunk after the first one, while

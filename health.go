@@ -39,7 +39,7 @@ const healthProbeText = "The weather is nice today, so we are going for a walk."
 // healthKinds lists the engines recorded for each kind of request.
 var healthKinds = map[string][]string{
 	"translate": {"google", "deepl", "duckduckgo", "mymemory", "yandex", "gemini", "textra", "groq", "qwen", "cohere", "microsoft", "langbly", "papago", "modernmt", "volcengine"},
-	"tts":       {"google", "textra", "groq", "microsoft"},
+	"tts":       {"google", "textra", "groq", "microsoft", "edge"},
 	"dict":      {"jisho", "jpdb", "moji", "weblio"},
 }
 

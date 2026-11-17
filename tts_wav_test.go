@@ -29,7 +29,7 @@ func TestTTSSupports(t *testing.T) {
 		want         bool
 	}{
 		{"textra", "ja", true}, {"textra", "es", false}, {"groq", "en", true}, {"groq", "es", false},
-		{"google", "es", true}, {"microsoft", "es", true}, {"deepl", "en", false},
+		{"google", "es", true}, {"microsoft", "es", true}, {"edge", "ja", true}, {"deepl", "en", false},
 	} {
 		if got := TTSSupports(c.engine, c.lang); got != c.want {
 			t.Errorf("TTSSupports(%s, %s) = %v, want %v", c.engine, c.lang, got, c.want)
