@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,10 +23,14 @@ import (
 
 // MOZHI_GEMINI_MODEL is a comma-separated preference list. Default order by
 // measured latency with minimal thinking: gemini-3.5-flash (~1.2s), the
-// flash-lite alias (~0.6s), and the flash alias last (it was saturated).
-// The two *-latest aliases are maintained by Google, so the list never runs
-// out: retired ids (404) are skipped.
-const geminiDefaultModels = "gemini-3.5-flash,gemini-flash-lite-latest,gemini-flash-latest"
+// flash-lite alias (~0.6s), and the flash alias (it was saturated). The two
+// *-latest aliases are maintained by Google, so the list never runs out:
+// retired ids (404) are skipped. Last, two lite models for days when every
+// Flash model is overloaded: on 19-nov-2026 all of them (Gemma too) answered
+// 503 "high demand" or hung, while gemini-3.1-flash-lite answered in 12.5s
+// and gemini-3.5-flash-lite in 24.6s (the latter only fits the 15s timeout
+// when there is less load).
+const geminiDefaultModels = "gemini-3.5-flash,gemini-flash-lite-latest,gemini-flash-latest,gemini-3.1-flash-lite,gemini-3.5-flash-lite"
 
 const (
 	// Saturated (503/429) or hanging model: skipped so that only one request
@@ -38,6 +43,7 @@ const (
 var geminiState struct {
 	sync.Mutex
 	skip      map[string]time.Time // model -> skipped until
+	why       map[string]string    // model -> why it is skipped ("503", "timeout"...)
 	noMinimal map[string]bool      // models that reject thinkingLevel "minimal"
 }
 
@@ -51,27 +57,47 @@ func geminiPickModel(prefs string) (string, bool, error) {
 	s.Lock()
 	defer s.Unlock()
 	now := time.Now()
+	var skipped []string
 	for _, id := range strings.Split(prefs, ",") {
 		id = strings.TrimSpace(id)
 		if id == "" {
 			continue
 		}
 		if until, ok := s.skip[id]; ok && now.Before(until) {
+			skipped = append(skipped, id+": "+s.why[id])
 			continue
 		}
 		return id, !s.noMinimal[id], nil
 	}
-	return "", false, errors.New("gemini: every configured model is saturated or retired right now (" + prefs + ")")
+	return "", false, errors.New("gemini: every configured model is saturated or retired right now (" + strings.Join(skipped, ", ") + ")")
 }
 
-func geminiSkipModel(model string, d time.Duration) {
+// geminiModelCount is the number of models in prefs (the default list when
+// empty).
+func geminiModelCount(prefs string) int {
+	if strings.TrimSpace(prefs) == "" {
+		prefs = geminiDefaultModels
+	}
+	n := 0
+	for _, id := range strings.Split(prefs, ",") {
+		if strings.TrimSpace(id) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// geminiSkipModel skips model for d; why ("503", "timeout", "404"...) goes
+// into the error once every model is skipped.
+func geminiSkipModel(model string, d time.Duration, why string) {
 	s := &geminiState
 	s.Lock()
 	defer s.Unlock()
 	if s.skip == nil {
-		s.skip = map[string]time.Time{}
+		s.skip, s.why = map[string]time.Time{}, map[string]string{}
 	}
 	s.skip[model] = time.Now().Add(d)
+	s.why[model] = why
 }
 
 func geminiMarkNoMinimal(model string) {
@@ -89,9 +115,9 @@ func geminiMarkNoMinimal(model string) {
 // on to the next model of the list.
 func geminiChat(baseURL, key, prefs, systemPrompt, userText string, temperature float64) (string, error) {
 	var lastErr error
-	// One attempt per model of a 3-model list, plus one retry without the
+	// One attempt per model of the list, plus one retry without the
 	// thinking setting for models that reject it.
-	for attempt := 0; attempt < 4; attempt++ {
+	for attempt := 0; attempt <= geminiModelCount(prefs); attempt++ {
 		model, minimal, err := geminiPickModel(prefs)
 		if err != nil {
 			if lastErr != nil {
@@ -127,7 +153,7 @@ func geminiChat(baseURL, key, prefs, systemPrompt, userText string, temperature 
 			lastErr = err
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
-				geminiSkipModel(model, geminiCoolTTL) // hanging = saturated
+				geminiSkipModel(model, geminiCoolTTL, "timeout") // hanging = saturated
 			}
 			continue
 		}
@@ -150,9 +176,9 @@ func geminiChat(baseURL, key, prefs, systemPrompt, userText string, temperature 
 			}
 			return text.String(), nil
 		case res.StatusCode == 503 || res.StatusCode == 429 || res.StatusCode == 500:
-			geminiSkipModel(model, geminiCoolTTL)
+			geminiSkipModel(model, geminiCoolTTL, strconv.Itoa(res.StatusCode))
 		case res.StatusCode == 404:
-			geminiSkipModel(model, geminiGoneTTL)
+			geminiSkipModel(model, geminiGoneTTL, "404 retired")
 		case res.StatusCode == 400 && minimal && strings.Contains(msg, "hinking level"):
 			geminiMarkNoMinimal(model)
 		default:
