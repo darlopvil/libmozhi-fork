@@ -14,7 +14,7 @@ doesn't touch the others.
 
 - `libmozhi.go`: the entry points (`Translate`, `TTS`, `LangList`, `TTSSupports`) and their dispatchers.
 - `engines.go`: the upstream engines (Google, DeepL, Yandex, MyMemory, plus Reverso and LibreTranslate, which Mozhi no longer offers) and `TranslateAll` / `TranslateSome`.
-- `duckduckgo.go`, `gemini.go`, `textra.go`, `groq.go`, `qwen.go`, `cohere.go`, `microsoft.go`, `langbly.go`, `papago.go`, `modernmt.go`, `volcengine.go`: one engine each, with its `<engine>_langs.go`.
+- `duckduckgo.go`, `gemini.go`, `textra.go`, `groq.go`, `qwen.go`, `cohere.go`, `microsoft.go`, `langbly.go`, `papago.go`, `volcengine.go`: one engine each, with its `<engine>_langs.go`.
 - `langlist-*.go`, `langlists.go`: language lists of the upstream engines. `langs_resolve.go` matches a language across the codes each engine uses (`es` / `es-ES`, `zh-CN` / `zh-Hans`).
 - `dict.go`: Google's dictionary. `yandex_translit.go`: Yandex transliteration.
 - `jadict.go` and `jadict_<source>.go`: the Japanese dictionary (Jisho, jpdb, MOJi, Weblio).

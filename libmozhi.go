@@ -97,8 +97,6 @@ func LangList(engine string, listType string) ([]List, error) {
 		data = langListLangbly(listType)
 	} else if engine == "papago" {
 		data = langListPapago(listType)
-	} else if engine == "modernmt" {
-		data = langListModernMT(listType)
 	} else if engine == "volcengine" {
 		data = langListVolcengine(listType)
 	} else {
@@ -161,8 +159,6 @@ func translate(engine string, to string, from string, text string) (LangOut, err
 		data, err = translateLangbly(to, from, text)
 	} else if engine == "papago" {
 		data, err = translatePapago(to, from, text)
-	} else if engine == "modernmt" {
-		data, err = translateModernMT(to, from, text)
 	} else if engine == "volcengine" {
 		data, err = translateVolcengine(to, from, text)
 	} else {
