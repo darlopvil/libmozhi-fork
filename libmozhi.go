@@ -184,10 +184,15 @@ func TTS(engine string, lang string, text string) ([]byte, error) {
 	}
 	start := time.Now()
 	data, err := tts(engine, lang, text)
-	// TexTra allows about 3 requests per 2 minutes, shared with its
-	// translations: when no slot is free, Google reads the text instead.
-	var limit textraLimitError
-	if engine == "textra" && errors.As(err, &limit) {
+	// When TexTra can't read the text, Google does: when no slot is free
+	// (about 3 requests per 2 minutes, shared with its translations), and
+	// when TexTra fails or is down. A failure still counts against TexTra's
+	// health, so its monitor shows it.
+	if engine == "textra" && err != nil {
+		var limit textraLimitError
+		if !errors.As(err, &limit) {
+			recordHealth(engine, "tts", start, err)
+		}
 		gl := lang
 		if gl == "zh" {
 			gl = "zh-CN"

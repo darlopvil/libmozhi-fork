@@ -171,6 +171,16 @@ func TTSStream(engine, lang, text string) (contentType string, write func(w io.W
 	}
 
 	first, err := synth(chunks[0])
+	if err != nil && engine == "textra" {
+		// TexTra failed or is down: nothing was sent yet, so Google reads
+		// all of it (synth already recorded the failure).
+		engine = "google"
+		if lang == "zh" {
+			lang = "zh-CN"
+		}
+		chunks = splitForTTS(text, ttsChunkLimit[engine])
+		first, err = synth(chunks[0])
+	}
 	if err != nil {
 		return "", nil, err
 	}

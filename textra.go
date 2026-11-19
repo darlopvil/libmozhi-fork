@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,7 +141,19 @@ func textraToken(baseURL, key, secret string) (string, error) {
 	}
 	token := gjson.GetBytes(out, "access_token").String()
 	if token == "" {
-		return "", errors.New("textra: no access token")
+		// Say why: maintenance, an outage and a bad key need different
+		// fixes. During maintenance, unscheduled ones included, TexTra
+		// answers 503 with a page saying "ただいまメンテナンス中です".
+		msg := "textra: no access token (token endpoint: " + res.Status
+		if strings.Contains(string(out), "メンテナンス") {
+			return "", errors.New("textra: under maintenance (token endpoint: " + res.Status + ")")
+		}
+		if d := gjson.GetBytes(out, "error_description").String(); d != "" {
+			msg += ", " + d
+		} else if e := gjson.GetBytes(out, "error").String(); e != "" {
+			msg += ", " + e
+		}
+		return "", errors.New(msg + ")")
 	}
 	life := gjson.GetBytes(out, "expires_in").Int()
 	if life <= 0 {
